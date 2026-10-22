@@ -30,8 +30,119 @@ class ShinigamiParser extends MangaParser {
   Map<String, String> get headers => {
     'Referer': 'https://$domain/',
     'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
-    'sec-fetch-dest': 'empty',
   };
+
+  @override
+  List<String> get availableCategories => const [
+    'All',
+    'Manhwa',
+    'Manga',
+    'Manhua',
+    'Project',
+  ];
+
+  @override
+  List<String> get availableGenres => const [
+    'All',
+    'Action',
+    'Adventure',
+    'Comedy',
+    'Cooking',
+    'Crime',
+    'Demon',
+    'Drama',
+    'Ecchi',
+    'Fantasy',
+    'Fight',
+    'Game',
+    'Gender Bender',
+    'Harem',
+    'Historical',
+    'Horror',
+    'Isekai',
+    'Josei',
+    'Magic',
+    'Martial Arts',
+    'Mature',
+    'Mecha',
+    'Medical',
+    'Murim',
+    'Mystery',
+    'Psychological',
+    'Regression',
+    'Reincarnation',
+    'Revenge',
+    'Romance',
+    'School Life',
+    'Sci-fi',
+    'Seinen',
+    'Shoujo',
+    'Shounen',
+    'Slice of Life',
+    'Sports',
+    'Supernatural',
+    'Thriller',
+    'Tragedy',
+    'Wuxia',
+  ];
+
+  static const Map<String, String> _genreSlugMap = {
+    'action': 'action',
+    'adaptation': 'adaptation',
+    'adult': 'adult',
+    'adventure': 'adventure',
+    'comedy': 'comedy',
+    'cooking': 'cooking',
+    'crime': 'crime',
+    'demon': 'demon',
+    'demons': 'demons',
+    'drama': 'drama',
+    'ecchi': 'ecchi',
+    'fantasy': 'fantasy',
+    'fight': 'fight',
+    'fighting': 'fighting-genre',
+    'game': 'game',
+    'gender bender': 'gender-bender',
+    'harem': 'harem',
+    'historical': 'historical',
+    'horror': 'horror',
+    'isekai': 'isekai',
+    'josei': 'josei-genre',
+    'latest': 'latest',
+    'love': 'love',
+    'magic': 'magic',
+    'martial arts': 'martial-arts',
+    'mature': 'mature',
+    'mecha': 'mecha',
+    'medical': 'medical',
+    'murim': 'murim',
+    'mystery': 'mystery',
+    'philosophical': 'philosophical',
+    'psychological': 'psychological',
+    'regression': 'regression',
+    'reincarnation': 'reincarnation-genre',
+    'revenge': 'revenge',
+    'romance': 'romance',
+    'school life': 'school-life',
+    'sci-fi': 'sci-fi',
+    'seinen': 'seinen',
+    'shoujo': 'shoujo',
+    'shounen': 'shounen',
+    'slice of life': 'slice-of-life',
+    'smut': 'smut',
+    'sports': 'sports',
+    'supernatural': 'supernatural',
+    'supranatural': 'supranatural',
+    'thriller': 'thriller',
+    'tragedy': 'tragedy',
+    'violence': 'violence',
+    'wuxia': 'wuxia',
+  };
+
+  String _toGenreSlug(String genre) {
+    final lower = genre.trim().toLowerCase();
+    return _genreSlugMap[lower] ?? lower.replaceAll(' ', '-');
+  }
 
   @override
   Future<List<Manga>> getList({
@@ -39,6 +150,7 @@ class ShinigamiParser extends MangaParser {
     required SortOrder order,
     String? query,
     String? genre,
+    String? category,
   }) async {
     final sort = order == SortOrder.popular ? 'popularity' : 'latest';
     String url = '$_apiBase/manga/list?page=$page&page_size=24&sort=$sort&sort_order=desc';
@@ -46,6 +158,20 @@ class ShinigamiParser extends MangaParser {
     if (query != null && query.trim().isNotEmpty) {
       final q = Uri.encodeComponent(query.trim());
       url += '&q=$q';
+    }
+
+    if (category != null && category.trim().isNotEmpty && category.trim().toLowerCase() != 'all') {
+      final cat = category.trim().toLowerCase();
+      if (cat == 'project' || cat == 'mirror') {
+        url += '&type=$cat';
+      } else {
+        url += '&format=$cat';
+      }
+    }
+
+    if (genre != null && genre.trim().isNotEmpty && genre.trim().toLowerCase() != 'all') {
+      final slug = _toGenreSlug(genre);
+      url += '&genre=${Uri.encodeComponent(slug)}';
     }
 
     try {
@@ -64,9 +190,18 @@ class ShinigamiParser extends MangaParser {
         final title = item['title'] as String? ?? '';
         if (mId.isEmpty || title.isEmpty) continue;
 
-        final coverUrl = item['cover_portrait_url'] as String? ??
-            item['cover_image_url'] as String? ??
-            '';
+        String coverUrl = '';
+        final portrait = item['cover_portrait_url'] as String?;
+        final cover = item['cover_image_url'] as String?;
+        if (portrait != null && portrait.trim().isNotEmpty) {
+          coverUrl = portrait.trim();
+        } else if (cover != null && cover.trim().isNotEmpty) {
+          coverUrl = cover.trim();
+        }
+
+        if (coverUrl.isNotEmpty && !coverUrl.startsWith('http')) {
+          coverUrl = coverUrl.startsWith('/') ? '$_cdnBase$coverUrl' : '$_cdnBase/$coverUrl';
+        }
 
         final statusVal = item['status'] as int? ?? 0;
         final status = statusVal == 2
@@ -117,9 +252,24 @@ class ShinigamiParser extends MangaParser {
         }
       }
 
+      String coverUrl = manga.coverUrl;
+      if (coverUrl.isEmpty) {
+        final portrait = data['cover_portrait_url'] as String?;
+        final cover = data['cover_image_url'] as String?;
+        if (portrait != null && portrait.trim().isNotEmpty) {
+          coverUrl = portrait.trim();
+        } else if (cover != null && cover.trim().isNotEmpty) {
+          coverUrl = cover.trim();
+        }
+        if (coverUrl.isNotEmpty && !coverUrl.startsWith('http')) {
+          coverUrl = coverUrl.startsWith('/') ? '$_cdnBase$coverUrl' : '$_cdnBase/$coverUrl';
+        }
+      }
+
       return manga.copyWith(
         description: desc ?? manga.description,
         genres: genres,
+        coverUrl: coverUrl.isNotEmpty ? coverUrl : manga.coverUrl,
       );
     } catch (_) {
       return manga;

@@ -60,14 +60,23 @@ class HistoryScreen extends ConsumerWidget {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 leading: ClipRRect(
                   borderRadius: BorderRadius.circular(6),
-                  child: ExtendedImage.network(
-                    entry.manga.coverUrl,
-                    width: 48,
-                    height: 64,
-                    fit: BoxFit.cover,
-                    headers: parser?.headers,
-                    cache: true,
-                  ),
+                  child: entry.manga.coverUrl.isNotEmpty
+                      ? ExtendedImage.network(
+                          entry.manga.coverUrl,
+                          width: 48,
+                          height: 64,
+                          fit: BoxFit.cover,
+                          headers: parser?.headers,
+                          cache: true,
+                        )
+                      : Container(
+                          width: 48,
+                          height: 64,
+                          color: Colors.black26,
+                          child: const Center(
+                            child: Icon(Icons.broken_image_outlined, color: Colors.white38, size: 20),
+                          ),
+                        ),
                 ),
                 title: Text(
                   entry.manga.title,

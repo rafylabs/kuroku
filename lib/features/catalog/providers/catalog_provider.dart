@@ -9,6 +9,8 @@ final activeParserProvider = StateProvider<MangaParser>((ref) {
 });
 
 final searchQueryProvider = StateProvider<String>((ref) => '');
+final selectedCategoryProvider = StateProvider<String>((ref) => 'All');
+final selectedGenreProvider = StateProvider<String>((ref) => 'All');
 
 class CatalogState {
   final List<Manga> items;
@@ -53,12 +55,16 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
     state = state.copyWith(isLoading: true, error: null, page: 1);
     final parser = ref.read(activeParserProvider);
     final query = ref.read(searchQueryProvider);
+    final category = ref.read(selectedCategoryProvider);
+    final genre = ref.read(selectedGenreProvider);
 
     try {
       final items = await parser.getList(
         page: 1,
         order: SortOrder.updated,
         query: query.isNotEmpty ? query : null,
+        category: category != 'All' ? category : null,
+        genre: genre != 'All' ? genre : null,
       );
 
       state = state.copyWith(
@@ -81,6 +87,8 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
     state = state.copyWith(isLoading: true);
     final parser = ref.read(activeParserProvider);
     final query = ref.read(searchQueryProvider);
+    final category = ref.read(selectedCategoryProvider);
+    final genre = ref.read(selectedGenreProvider);
     final nextPage = state.page + 1;
 
     try {
@@ -88,6 +96,8 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
         page: nextPage,
         order: SortOrder.updated,
         query: query.isNotEmpty ? query : null,
+        category: category != 'All' ? category : null,
+        genre: genre != 'All' ? genre : null,
       );
 
       state = state.copyWith(
@@ -103,8 +113,10 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
 }
 
 final catalogProvider = StateNotifierProvider<CatalogNotifier, CatalogState>((ref) {
-  // Reload when parser or search query changes
+  // Reload when parser, search query, category, or genre changes
   ref.watch(activeParserProvider);
   ref.watch(searchQueryProvider);
+  ref.watch(selectedCategoryProvider);
+  ref.watch(selectedGenreProvider);
   return CatalogNotifier(ref);
 });

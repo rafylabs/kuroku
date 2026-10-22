@@ -31,6 +31,7 @@ class KomikuParser extends MangaParser {
     required SortOrder order,
     String? query,
     String? genre,
+    String? category,
   }) async {
     String url;
     if (query != null && query.trim().isNotEmpty) {
@@ -64,7 +65,14 @@ class KomikuParser extends MangaParser {
         if (title.isEmpty) continue;
 
         final img = el.querySelector('img');
-        String coverUrl = img?.attributes['src'] ?? img?.attributes['data-src'] ?? '';
+        final dataSrc = img?.attributes['data-src']?.trim();
+        final src = img?.attributes['src']?.trim();
+        String coverUrl = '';
+        if (dataSrc != null && dataSrc.isNotEmpty && !dataSrc.startsWith('data:')) {
+          coverUrl = dataSrc;
+        } else if (src != null && src.isNotEmpty && !src.startsWith('data:')) {
+          coverUrl = src;
+        }
         if (coverUrl.contains('?')) {
           coverUrl = coverUrl.split('?').first;
         }

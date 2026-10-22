@@ -81,12 +81,19 @@ class LibraryScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Expanded(
-                            child: ExtendedImage.network(
-                              manga.coverUrl,
-                              fit: BoxFit.cover,
-                              headers: parser?.headers,
-                              cache: true,
-                            ),
+                            child: manga.coverUrl.isNotEmpty
+                                ? ExtendedImage.network(
+                                    manga.coverUrl,
+                                    fit: BoxFit.cover,
+                                    headers: parser?.headers,
+                                    cache: true,
+                                  )
+                                : Container(
+                                    color: Colors.black26,
+                                    child: const Center(
+                                      child: Icon(Icons.broken_image_outlined, color: Colors.white38),
+                                    ),
+                                  ),
                           ),
                           Container(
                             padding: const EdgeInsets.all(8),

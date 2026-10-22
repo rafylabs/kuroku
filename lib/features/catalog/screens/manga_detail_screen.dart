@@ -157,12 +157,14 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  ExtendedImage.network(
-                    _currentManga.coverUrl,
-                    fit: BoxFit.cover,
-                    headers: parser?.headers,
-                    cache: true,
-                  ),
+                  _currentManga.coverUrl.isNotEmpty
+                      ? ExtendedImage.network(
+                          _currentManga.coverUrl,
+                          fit: BoxFit.cover,
+                          headers: parser?.headers,
+                          cache: true,
+                        )
+                      : Container(color: Colors.black38),
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -186,13 +188,22 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: ExtendedImage.network(
-                            _currentManga.coverUrl,
-                            width: 100,
-                            height: 140,
-                            fit: BoxFit.cover,
-                            headers: parser?.headers,
-                          ),
+                          child: _currentManga.coverUrl.isNotEmpty
+                              ? ExtendedImage.network(
+                                  _currentManga.coverUrl,
+                                  width: 100,
+                                  height: 140,
+                                  fit: BoxFit.cover,
+                                  headers: parser?.headers,
+                                )
+                              : Container(
+                                  width: 100,
+                                  height: 140,
+                                  color: Colors.black38,
+                                  child: const Center(
+                                    child: Icon(Icons.broken_image_outlined, color: Colors.white38),
+                                  ),
+                                ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(

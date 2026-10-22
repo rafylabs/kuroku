@@ -325,6 +325,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                           ],
                         ),
                         onTap: () {
+                          ref.read(selectedCategoryProvider.notifier).state = 'All';
+                          ref.read(selectedGenreProvider.notifier).state = 'All';
                           ref.read(activeParserProvider.notifier).state = parser;
                           Navigator.pop(ctx);
                         },
@@ -352,10 +354,252 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     );
   }
 
+  void _showFilterBottomSheet(MangaParser parser) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (bContext) => Consumer(
+        builder: (ctx, innerRef, _) {
+          final tempCat = innerRef.watch(selectedCategoryProvider);
+          final tempGenre = innerRef.watch(selectedGenreProvider);
+
+          return DraggableScrollableSheet(
+            initialChildSize: 0.7,
+            minChildSize: 0.4,
+            maxChildSize: 0.9,
+            expand: false,
+            builder: (_, scrollController) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade600,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Filter Bacaan',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: const Text('Reset'),
+                        onPressed: () {
+                          innerRef.read(selectedCategoryProvider.notifier).state = 'All';
+                          innerRef.read(selectedGenreProvider.notifier).state = 'All';
+                        },
+                      ),
+                    ],
+                  ),
+                  const Divider(),
+                  Expanded(
+                    child: ListView(
+                      controller: scrollController,
+                      children: [
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Kategori / Format',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: parser.availableCategories.map((cat) {
+                            final isSel = tempCat.toLowerCase() == cat.toLowerCase();
+                            return ChoiceChip(
+                              label: Text(cat == 'All' ? 'Semua' : cat),
+                              selected: isSel,
+                              selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                              labelStyle: TextStyle(
+                                color: isSel ? Theme.of(context).colorScheme.primary : null,
+                                fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                              ),
+                              side: BorderSide(
+                                color: isSel
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).dividerColor,
+                              ),
+                              onSelected: (_) {
+                                innerRef.read(selectedCategoryProvider.notifier).state = cat;
+                              },
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Genre',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: parser.availableGenres.map((g) {
+                            final isSel = tempGenre.toLowerCase() == g.toLowerCase();
+                            return ChoiceChip(
+                              label: Text(g == 'All' ? 'Semua Genre' : g),
+                              selected: isSel,
+                              selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                              labelStyle: TextStyle(
+                                color: isSel ? Theme.of(context).colorScheme.primary : null,
+                                fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                              ),
+                              side: BorderSide(
+                                color: isSel
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).dividerColor,
+                              ),
+                              onSelected: (_) {
+                                innerRef.read(selectedGenreProvider.notifier).state = g;
+                              },
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                  SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Colors.black,
+                        ),
+                        onPressed: () => Navigator.pop(bContext),
+                        child: const Text('Terapkan Filter', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFilterBar(MangaParser parser) {
+    final selectedCat = ref.watch(selectedCategoryProvider);
+    final selectedGenre = ref.watch(selectedGenreProvider);
+    final hasActiveFilter = selectedCat != 'All' || selectedGenre != 'All';
+
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+          ),
+        ),
+      ),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            child: ActionChip(
+              avatar: Icon(
+                Icons.filter_list,
+                size: 16,
+                color: hasActiveFilter ? Theme.of(context).colorScheme.primary : null,
+              ),
+              label: Text(
+                'Filter',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: hasActiveFilter ? FontWeight.bold : FontWeight.normal,
+                  color: hasActiveFilter ? Theme.of(context).colorScheme.primary : null,
+                ),
+              ),
+              backgroundColor: hasActiveFilter
+                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.15)
+                  : null,
+              side: BorderSide(
+                color: hasActiveFilter
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).dividerColor,
+              ),
+              onPressed: () => _showFilterBottomSheet(parser),
+            ),
+          ),
+          if (selectedGenre != 'All')
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+              child: InputChip(
+                label: Text(
+                  selectedGenre,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                deleteIconColor: Theme.of(context).colorScheme.primary,
+                backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                side: BorderSide(color: Theme.of(context).colorScheme.primary),
+                onDeleted: () {
+                  ref.read(selectedGenreProvider.notifier).state = 'All';
+                },
+                onPressed: () => _showFilterBottomSheet(parser),
+              ),
+            ),
+          ...parser.availableCategories.map((cat) {
+            final isSelected = selectedCat.toLowerCase() == cat.toLowerCase();
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+              child: ChoiceChip(
+                label: Text(
+                  cat == 'All' ? 'Semua' : cat,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                  ),
+                ),
+                selected: isSelected,
+                selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                side: BorderSide(
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).dividerColor,
+                ),
+                onSelected: (val) {
+                  ref.read(selectedCategoryProvider.notifier).state = isSelected ? 'All' : cat;
+                },
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final activeParser = ref.watch(activeParserProvider);
     final catalogState = ref.watch(catalogProvider);
+    final selectedCat = ref.watch(selectedCategoryProvider);
+    final selectedGenre = ref.watch(selectedGenreProvider);
+    final hasActiveFilter = selectedCat != 'All' || selectedGenre != 'All';
 
     return Scaffold(
       appBar: AppBar(
@@ -419,16 +663,33 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
             },
           ),
           IconButton(
+            icon: Badge(
+              isLabelVisible: hasActiveFilter,
+              smallSize: 8,
+              child: const Icon(Icons.filter_list_rounded),
+            ),
+            tooltip: 'Filter Kategori & Genre',
+            onPressed: () => _showFilterBottomSheet(activeParser),
+          ),
+          IconButton(
             icon: const Icon(Icons.tune),
+            tooltip: 'Sources',
             onPressed: _showSourcePicker,
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await ref.read(catalogProvider.notifier).loadFirstPage();
-        },
-        child: _buildBody(catalogState),
+      body: Column(
+        children: [
+          _buildFilterBar(activeParser),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                await ref.read(catalogProvider.notifier).loadFirstPage();
+              },
+              child: _buildBody(catalogState),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -519,24 +780,42 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  child: ExtendedImage.network(
-                    manga.coverUrl,
-                    fit: BoxFit.cover,
-                    headers: ref.read(activeParserProvider).headers,
-                    cache: true,
-                    loadStateChanged: (state) {
-                      if (state.extendedImageLoadState == LoadState.loading) {
-                        return Container(color: Colors.black26);
-                      }
-                      if (state.extendedImageLoadState == LoadState.failed) {
-                        return Container(
+                  child: manga.coverUrl.isNotEmpty
+                      ? ExtendedImage.network(
+                          manga.coverUrl,
+                          fit: BoxFit.cover,
+                          headers: ref.read(activeParserProvider).headers,
+                          cache: true,
+                          loadStateChanged: (state) {
+                            if (state.extendedImageLoadState == LoadState.loading) {
+                              return Container(
+                                color: Colors.black26,
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                ),
+                              );
+                            }
+                            if (state.extendedImageLoadState == LoadState.failed) {
+                              return Container(
+                                color: Colors.black26,
+                                child: const Center(
+                                  child: Icon(Icons.broken_image_outlined, color: Colors.white38, size: 28),
+                                ),
+                              );
+                            }
+                            return null;
+                          },
+                        )
+                      : Container(
                           color: Colors.black26,
-                          child: const Icon(Icons.broken_image, color: Colors.grey),
-                        );
-                      }
-                      return null;
-                    },
-                  ),
+                          child: const Center(
+                            child: Icon(Icons.broken_image_outlined, color: Colors.white38, size: 28),
+                          ),
+                        ),
                 ),
                 Container(
                   padding: const EdgeInsets.all(8),

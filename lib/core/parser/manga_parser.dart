@@ -13,11 +13,32 @@ abstract class MangaParser {
     'Referer': 'https://$domain/',
   };
 
+  List<String> get availableCategories => const ['All', 'Manhwa', 'Manga', 'Manhua'];
+  List<String> get availableGenres => const [
+    'All',
+    'Action',
+    'Adventure',
+    'Comedy',
+    'Drama',
+    'Fantasy',
+    'Horror',
+    'Isekai',
+    'Martial Arts',
+    'Mystery',
+    'Psychological',
+    'Romance',
+    'Sci-Fi',
+    'Slice of Life',
+    'Supernatural',
+    'Thriller',
+  ];
+
   Future<List<Manga>> getList({
     required int page,
     required SortOrder order,
     String? query,
     String? genre,
+    String? category,
   });
 
   Future<Manga> getDetails(Manga manga);

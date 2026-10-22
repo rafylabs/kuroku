@@ -37,6 +37,7 @@ class WeebCentralParser extends MangaParser {
     required SortOrder order,
     String? query,
     String? genre,
+    String? category,
   }) async {
     final offset = (page - 1) * 32;
     String url = 'https://$domain/search/data?limit=32&offset=$offset&official=Any&anime=Any&adult=Any&display_mode=Full+Display';

@@ -84,10 +84,15 @@ void main() {
       final shinigami = registry.getParser('shinigami');
       expect(shinigami, isNotNull);
       expect(shinigami!.domain, 'id.shinigami.asia');
+      expect(shinigami.availableCategories, contains('Manhwa'));
+      expect(shinigami.availableCategories, contains('Project'));
+      expect(shinigami.availableGenres, contains('Action'));
+      expect(shinigami.availableGenres, contains('Martial Arts'));
 
       final weebcentral = registry.getParser('weebcentral');
       expect(weebcentral, isNotNull);
       expect(weebcentral!.domain, 'weebcentral.com');
+      expect(weebcentral.availableCategories, contains('Manga'));
     });
 
     test('AppTheme loads dark and light themes without error', () {

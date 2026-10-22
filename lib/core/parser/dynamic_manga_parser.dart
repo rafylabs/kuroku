@@ -83,6 +83,7 @@ class DynamicMangaParser extends MangaParser {
     required SortOrder order,
     String? query,
     String? genre,
+    String? category,
   }) async {
     String url;
     if (sourceConfig.type == 'themesia') {

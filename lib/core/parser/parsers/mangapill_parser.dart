@@ -31,13 +31,16 @@ class MangaPillParser extends MangaParser {
     required SortOrder order,
     String? query,
     String? genre,
+    String? category,
   }) async {
     String url;
     if (query != null && query.trim().isNotEmpty) {
       final q = Uri.encodeComponent(query.trim());
       url = 'https://$domain/search?q=$q&page=$page';
-    } else if (genre != null && genre.isNotEmpty) {
-      url = 'https://$domain/search?genre=${Uri.encodeComponent(genre)}&page=$page';
+    } else if (genre != null && genre.isNotEmpty && genre.toLowerCase() != 'all') {
+      url = 'https://$domain/search?genre=${Uri.encodeComponent(genre.toLowerCase())}&page=$page';
+    } else if (category != null && category.isNotEmpty && category.toLowerCase() != 'all') {
+      url = 'https://$domain/search?type=${Uri.encodeComponent(category.toLowerCase())}&page=$page';
     } else {
       url = 'https://$domain/search?status=publishing&page=$page';
     }
@@ -58,7 +61,14 @@ class MangaPillParser extends MangaParser {
       if (href == null || !href.contains('/manga/')) continue;
 
       final img = el.querySelector('img');
-      final coverUrl = img?.attributes['data-src'] ?? img?.attributes['src'] ?? '';
+      final dataSrc = img?.attributes['data-src']?.trim();
+      final src = img?.attributes['src']?.trim();
+      String coverUrl = '';
+      if (dataSrc != null && dataSrc.isNotEmpty && !dataSrc.startsWith('data:')) {
+        coverUrl = dataSrc;
+      } else if (src != null && src.isNotEmpty && !src.startsWith('data:')) {
+        coverUrl = src;
+      }
 
       final parent = el.parent;
       final titleEl = parent?.querySelector('div.mt-3.font-black') ?? parent?.querySelector('div.line-clamp-2');
