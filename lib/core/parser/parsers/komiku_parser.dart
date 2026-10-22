@@ -54,7 +54,7 @@ class KomikuParser extends MangaParser {
 
       final list = <Manga>[];
       for (final el in elements) {
-        final a = el.querySelector('a:has(h3)') ?? el.querySelector('a');
+        final a = el.querySelector('h3')?.parent?.localName == 'a' ? el.querySelector('h3')!.parent : el.querySelector('a');
         if (a == null) continue;
 
         final href = a.attributes['href'];
@@ -130,7 +130,7 @@ class KomikuParser extends MangaParser {
       if (res.data == null) return [];
       final doc = html_parser.parse(res.data);
 
-      final rows = doc.querySelectorAll('#Daftar_Chapter tr:has(td.judulseries)');
+      final rows = doc.querySelectorAll('#Daftar_Chapter tr').where((tr) => tr.querySelector('td.judulseries') != null).toList();
       final chapters = <MangaChapter>[];
 
       for (int i = 0; i < rows.length; i++) {

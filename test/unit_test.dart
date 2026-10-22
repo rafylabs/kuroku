@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:html/parser.dart' as html_parser;
 import 'package:kuroku/core/database/models/manga.dart';
 import 'package:kuroku/core/database/models/chapter.dart';
 import 'package:kuroku/core/database/models/manga_page.dart';
@@ -102,6 +103,28 @@ void main() {
       expect(dark.useMaterial3, isTrue);
       expect(light.useMaterial3, isTrue);
       expect(dark.colorScheme.primary, AppTheme.cyanAccent);
+    });
+
+    test('WeebCentral parsing does not throw UnimplementedError and parses manga cards', () {
+      const sampleHtml = '''
+      <article class="bg-base-300 flex gap-4 p-4">
+        <section class="w-full">
+          <a href="https://weebcentral.com/series/01J76XYEGYY86GDR09MN457Q7R/Villain-To-Kill">
+            <picture>
+              <img src="https://temp.compsci88.com/cover/fallback/01J76XYEGYY86GDR09MN457Q7R.jpg" alt="Villain to Kill cover">
+            </picture>
+            <div class="truncate">Villain to Kill</div>
+          </a>
+        </section>
+      </article>
+      ''';
+      final doc = html_parser.parse(sampleHtml);
+      final articles = doc.querySelectorAll('article.bg-base-300');
+      expect(articles.length, 1);
+      final a = articles.first.querySelector('a[href*="/series/"]');
+      expect(a, isNotNull);
+      final img = articles.first.querySelector('picture img');
+      expect(img?.attributes['src'], contains('01J76XYEGYY86GDR09MN457Q7R'));
     });
   });
 }

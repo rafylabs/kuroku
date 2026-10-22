@@ -194,7 +194,7 @@ class SettingsScreen extends ConsumerWidget {
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Kuroku Cross-Platform'),
-            subtitle: Text('Version 1.1.0 (Reverse Engineered Flutter Edition)'),
+            subtitle: Text('Version 1.1.1 (Reverse Engineered Flutter Edition)'),
           ),
         ],
       ),

@@ -32,6 +32,34 @@ class WeebCentralParser extends MangaParser {
   };
 
   @override
+  List<String> get availableCategories => const ['All', 'Manga', 'Manhwa', 'Manhua'];
+
+  @override
+  List<String> get availableGenres => const [
+    'All',
+    'Action',
+    'Adventure',
+    'Comedy',
+    'Drama',
+    'Fantasy',
+    'Harem',
+    'Historical',
+    'Horror',
+    'Isekai',
+    'Martial Arts',
+    'Mecha',
+    'Mystery',
+    'Psychological',
+    'Romance',
+    'School Life',
+    'Sci-Fi',
+    'Slice of Life',
+    'Sports',
+    'Supernatural',
+    'Tragedy',
+  ];
+
+  @override
   Future<List<Manga>> getList({
     required int page,
     required SortOrder order,
@@ -47,6 +75,14 @@ class WeebCentralParser extends MangaParser {
       url += '&text=${Uri.encodeComponent(cleanQuery)}';
     }
 
+    if (category != null && category.trim().isNotEmpty && category.trim().toLowerCase() != 'all') {
+      url += '&included_type=${Uri.encodeComponent(category.trim())}';
+    }
+
+    if (genre != null && genre.trim().isNotEmpty && genre.trim().toLowerCase() != 'all') {
+      url += '&included_tag=${Uri.encodeComponent(genre.trim())}';
+    }
+
     url += order == SortOrder.popular
         ? '&sort=Popularity&order=Descending'
         : '&sort=Latest+Updates&order=Descending';
@@ -60,11 +96,11 @@ class WeebCentralParser extends MangaParser {
 
       if (res.data == null) return [];
       final doc = html_parser.parse(res.data);
-      final articles = doc.querySelectorAll('article:has(section)');
+      final articles = doc.querySelectorAll('article.bg-base-300');
 
       final list = <Manga>[];
       for (final el in articles) {
-        final a = el.querySelector('a');
+        final a = el.querySelector('a[href*="/series/"]');
         if (a == null) continue;
 
         final href = a.attributes['href'];
@@ -74,11 +110,17 @@ class WeebCentralParser extends MangaParser {
         if (pathSegments.length < 2) continue;
         final mangaId = pathSegments[1];
 
-        final titleEl = el.querySelector('div.text-ellipsis') ?? el.querySelector('.truncate');
+        final titleEl = el.querySelector('.truncate') ??
+            el.querySelector('.text-ellipsis') ??
+            el.querySelector('div.text-lg');
         final title = titleEl?.text.trim() ?? 'Unknown';
 
         final img = el.querySelector('picture img') ?? el.querySelector('img');
-        final coverUrl = img?.attributes['src'] ?? '';
+        String coverUrl = img?.attributes['src']?.trim() ?? '';
+        if (coverUrl.isEmpty) {
+          final source = el.querySelector('picture source');
+          coverUrl = source?.attributes['srcset']?.trim() ?? '';
+        }
 
         list.add(Manga(
           id: '${id}_$mangaId',
@@ -110,11 +152,11 @@ class WeebCentralParser extends MangaParser {
       final doc = html_parser.parse(res.data);
 
       final title = doc.querySelector('h1')?.text.trim() ?? manga.title;
-      final descEl = doc.querySelector('li:has(strong) > p') ?? doc.querySelector('p');
+      final descEl = doc.querySelector('p.whitespace-pre-wrap') ?? doc.querySelector('p');
       final desc = descEl?.text.trim();
 
       final genres = <String>[];
-      final tagEls = doc.querySelectorAll('ul > li:has(strong) a');
+      final tagEls = doc.querySelectorAll('a[href*="included_tag="]');
       for (final t in tagEls) {
         final text = t.text.trim();
         if (text.isNotEmpty && !genres.contains(text)) {
@@ -145,7 +187,7 @@ class WeebCentralParser extends MangaParser {
 
       if (res.data == null) return [];
       final doc = html_parser.parse(res.data);
-      final links = doc.querySelectorAll('div[x-data] > a');
+      final links = doc.querySelectorAll('a[href*="/chapters/"]');
 
       final chapters = <MangaChapter>[];
       for (int i = 0; i < links.length; i++) {
