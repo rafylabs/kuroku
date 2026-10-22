@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:extended_image/extended_image.dart';
 import '../../../core/database/models/manga.dart';
+import '../../../core/parser/manga_parser.dart';
 import '../../../core/parser/parser_registry.dart';
 import '../../../core/parser/dynamic_manga_parser.dart';
 import '../providers/catalog_provider.dart';
@@ -36,6 +37,58 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 400) {
       ref.read(catalogProvider.notifier).loadNextPage();
     }
+  }
+
+  void _showEditDomainDialog(MangaParser parser) {
+    final domainController = TextEditingController(text: parser.domain);
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text('Edit Domain: ${parser.name}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Domain / Mirror URL', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: domainController,
+              decoration: const InputDecoration(
+                hintText: 'e.g. id.shinigami.asia or shinigami.moe',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newDomain = domainController.text.trim();
+              if (newDomain.isNotEmpty) {
+                await ParserRegistry.instance.updateSourceDomain(parser.id, newDomain);
+                final updated = ParserRegistry.instance.getParser(parser.id);
+                if (updated != null && ref.read(activeParserProvider).id == parser.id) {
+                  ref.read(activeParserProvider.notifier).state = updated;
+                }
+              }
+              if (dialogCtx.mounted) {
+                Navigator.pop(dialogCtx);
+              }
+              if (mounted) {
+                setState(() {});
+              }
+            },
+            child: const Text('Save Domain'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showAddSourceDialog() {
@@ -249,6 +302,11 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined, size: 18),
+                              tooltip: 'Edit Domain',
+                              onPressed: () => _showEditDomainDialog(parser),
+                            ),
                             if (isCustom)
                               IconButton(
                                 icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),

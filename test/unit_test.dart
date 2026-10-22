@@ -78,16 +78,16 @@ void main() {
       final parsers = registry.allParsers;
 
       expect(parsers.length, greaterThanOrEqualTo(2));
-      expect(parsers.any((p) => p.id == 'mangapill'), isTrue);
-      expect(parsers.any((p) => p.id == 'komiku'), isTrue);
+      expect(parsers.any((p) => p.id == 'shinigami'), isTrue);
+      expect(parsers.any((p) => p.id == 'weebcentral'), isTrue);
 
-      final mangapill = registry.getParser('mangapill');
-      expect(mangapill, isNotNull);
-      expect(mangapill!.domain, 'mangapill.com');
+      final shinigami = registry.getParser('shinigami');
+      expect(shinigami, isNotNull);
+      expect(shinigami!.domain, 'id.shinigami.asia');
 
-      final komiku = registry.getParser('komiku');
-      expect(komiku, isNotNull);
-      expect(komiku!.domain, 'komiku.org');
+      final weebcentral = registry.getParser('weebcentral');
+      expect(weebcentral, isNotNull);
+      expect(weebcentral!.domain, 'weebcentral.com');
     });
 
     test('AppTheme loads dark and light themes without error', () {

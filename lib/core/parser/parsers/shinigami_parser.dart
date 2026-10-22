@@ -5,6 +5,12 @@ import '../../network/http_client.dart';
 import '../manga_parser.dart';
 
 class ShinigamiParser extends MangaParser {
+  String? _customDomain;
+
+  void setCustomDomain(String newDomain) {
+    _customDomain = newDomain.replaceAll('https://', '').replaceAll('http://', '').replaceAll('/', '').trim();
+  }
+
   @override
   String get id => 'shinigami';
 
@@ -12,7 +18,7 @@ class ShinigamiParser extends MangaParser {
   String get name => 'Shinigami (ID)';
 
   @override
-  String get domain => 'id.shinigami.asia';
+  String get domain => _customDomain ?? 'id.shinigami.asia';
 
   @override
   String get locale => 'id';
@@ -22,7 +28,7 @@ class ShinigamiParser extends MangaParser {
 
   @override
   Map<String, String> get headers => {
-    'Referer': 'https://id.shinigami.asia/',
+    'Referer': 'https://$domain/',
     'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
     'sec-fetch-dest': 'empty',
   };
