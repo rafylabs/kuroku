@@ -112,21 +112,21 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Kotatsu Flutter is configured with standard zero-restricted entitlements and can be installed without the Apple App Store:',
+                        'Kuroku Flutter is configured with standard zero-restricted entitlements and can be installed without the Apple App Store:',
                         style: TextStyle(fontSize: 13, color: Colors.grey),
                       ),
                       const SizedBox(height: 16),
                       _buildStep(
                         '1. AltStore / SideStore',
-                        'Download the Kotatsu.ipa file from GitHub Releases, open AltStore or SideStore on your iPhone/iPad, click "+" and select Kotatsu.ipa. Sign with your free Apple ID.',
+                        'Download the Kuroku.ipa file from GitHub Releases, open AltStore or SideStore on your iPhone/iPad, click "+" and select Kuroku.ipa. Sign with your free Apple ID.',
                       ),
                       _buildStep(
                         '2. TrollStore (iOS 14.0 - 17.0)',
-                        'Open TrollStore, tap "+" and install Kotatsu.ipa directly. No 7-day expiration or revocations.',
+                        'Open TrollStore, tap "+" and install Kuroku.ipa directly. No 7-day expiration or revocations.',
                       ),
                       _buildStep(
                         '3. Sideloadly / Scarlet',
-                        'Drag Kotatsu.ipa into Sideloadly on Mac or PC, enter your Apple ID, and install via USB or Wi-Fi.',
+                        'Drag Kuroku.ipa into Sideloadly on Mac or PC, enter your Apple ID, and install via USB or Wi-Fi.',
                       ),
                       const SizedBox(height: 12),
                       Container(
@@ -150,7 +150,7 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.badge_outlined),
             title: const Text('Bundle Identifier'),
-            subtitle: const Text('org.koitharu.kotatsu.flutter'),
+            subtitle: const Text('com.rafylabs.kuroku'),
           ),
           const Divider(),
 
@@ -193,7 +193,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const ListTile(
             leading: Icon(Icons.info_outline),
-            title: Text('Kotatsu Cross-Platform'),
+            title: Text('Kuroku Cross-Platform'),
             subtitle: Text('Version 1.0.0 (Reverse Engineered Flutter Edition)'),
           ),
         ],

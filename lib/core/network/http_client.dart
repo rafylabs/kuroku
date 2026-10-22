@@ -2,12 +2,12 @@ import 'package:dio/dio.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 
-class KotatsuHttpClient {
-  static final KotatsuHttpClient instance = KotatsuHttpClient._internal();
+class KurokuHttpClient {
+  static final KurokuHttpClient instance = KurokuHttpClient._internal();
   late final Dio dio;
   late final CookieJar cookieJar;
 
-  KotatsuHttpClient._internal() {
+  KurokuHttpClient._internal() {
     cookieJar = CookieJar();
     dio = Dio(
       BaseOptions(

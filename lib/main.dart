@@ -20,17 +20,17 @@ void main() async {
     ),
   );
 
-  runApp(const KotatsuApp());
+  runApp(const KurokuApp());
 }
 
-class KotatsuApp extends StatelessWidget {
-  const KotatsuApp({super.key});
+class KurokuApp extends StatelessWidget {
+  const KurokuApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
       child: MaterialApp(
-        title: 'Kotatsu',
+        title: 'Kuroku',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,

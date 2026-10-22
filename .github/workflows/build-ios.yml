@@ -42,32 +42,32 @@ jobs:
       - name: Package into Sideloadable IPA
         run: |
           mkdir -p build/ios/ipa/Payload
-          cp -r build/ios/iphoneos/Runner.app build/ios/ipa/Payload/Kotatsu.app
+          cp -r build/ios/iphoneos/Runner.app build/ios/ipa/Payload/Kuroku.app
           cd build/ios/ipa
-          zip -r -q Kotatsu.ipa Payload
+          zip -r -q Kuroku.ipa Payload
           rm -rf Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Kotatsu-iOS-Sideload
-          path: build/ios/ipa/Kotatsu.ipa
+          name: Kuroku-iOS-Sideload
+          path: build/ios/ipa/Kuroku.ipa
           retention-days: 14
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: build/ios/ipa/Kotatsu.ipa
-          name: Kotatsu iOS Release ${{ github.ref_name }}
+          files: build/ios/ipa/Kuroku.ipa
+          name: Kuroku iOS Release ${{ github.ref_name }}
           draft: false
           prerelease: false
           body: |
-            ### Kotatsu iOS Sideload Package
+            ### Kuroku iOS Sideload Package
             
-            This release includes the unsigned `Kotatsu.ipa` package designed for non-AppStore installation.
+            This release includes the unsigned `Kuroku.ipa` package designed for non-AppStore installation.
             
             #### How to Install:
-            - **AltStore / SideStore**: Download `Kotatsu.ipa` on your iOS device and open in AltStore/SideStore.
+            - **AltStore / SideStore**: Download `Kuroku.ipa` on your iOS device and open in AltStore/SideStore.
             - **TrollStore** (iOS 14 - 17.0): Install directly with permanent entitlement without revokes.
-            - **Sideloadly / Scarlet**: Drag & drop `Kotatsu.ipa` to install using your Apple ID.
+            - **Sideloadly / Scarlet**: Drag & drop `Kuroku.ipa` to install using your Apple ID.

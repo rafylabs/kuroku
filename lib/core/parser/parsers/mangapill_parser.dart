@@ -42,7 +42,7 @@ class MangaPillParser extends MangaParser {
       url = 'https://$domain/search?status=publishing&page=$page';
     }
 
-    final res = await KotatsuHttpClient.instance.get<String>(
+    final res = await KurokuHttpClient.instance.get<String>(
       url,
       headers: headers,
       responseType: ResponseType.plain,
@@ -82,7 +82,7 @@ class MangaPillParser extends MangaParser {
 
   @override
   Future<Manga> getDetails(Manga manga) async {
-    final res = await KotatsuHttpClient.instance.get<String>(
+    final res = await KurokuHttpClient.instance.get<String>(
       manga.url,
       headers: headers,
       responseType: ResponseType.plain,
@@ -128,7 +128,7 @@ class MangaPillParser extends MangaParser {
 
   @override
   Future<List<MangaChapter>> getChapters(Manga manga) async {
-    final res = await KotatsuHttpClient.instance.get<String>(
+    final res = await KurokuHttpClient.instance.get<String>(
       manga.url,
       headers: headers,
       responseType: ResponseType.plain,
@@ -172,7 +172,7 @@ class MangaPillParser extends MangaParser {
 
   @override
   Future<List<MangaPage>> getPages(MangaChapter chapter) async {
-    final res = await KotatsuHttpClient.instance.get<String>(
+    final res = await KurokuHttpClient.instance.get<String>(
       chapter.url,
       headers: headers,
       responseType: ResponseType.plain,

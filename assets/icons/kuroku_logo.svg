@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#030712"/>
+      <stop offset="100%" stop-color="#0A0E17"/>
+    </linearGradient>
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F0FF"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Dark Obsidian Rounded Base (Squircle) -->
+  <rect width="1024" height="1024" rx="224" fill="url(#bgGrad)"/>
+  
+  <!-- Subtle Inner Border -->
+  <rect x="16" y="16" width="992" height="992" rx="208" fill="none" stroke="#00F0FF" stroke-opacity="0.15" stroke-width="4"/>
+
+  <!-- Optical Center Geometric 'K' Emblem -->
+  <!-- Left Vertical Spine (Manga Volume Binding) -->
+  <rect x="256" y="240" width="96" height="544" rx="48" fill="url(#cyanGrad)"/>
+
+  <!-- Top-Right Diagonal Wing (Upper Manga Page / Bookmark) -->
+  <path d="M 460 512 L 672 300 C 696 276 736 276 760 300 C 784 324 784 364 760 388 L 576 572 C 552 596 512 596 488 572 Z" fill="url(#cyanGrad)"/>
+
+  <!-- Bottom-Right Diagonal Wing (Lower Manga Page) -->
+  <path d="M 488 452 C 512 428 552 428 576 452 L 760 636 C 784 660 784 700 760 724 C 736 748 696 748 672 724 L 460 512 Z" fill="url(#glowGrad)"/>
+
+  <!-- Center HUD Diamond Node -->
+  <polygon points="460,512 490,482 520,512 490,542" fill="#FFFFFF" opacity="0.95"/>
+</svg>

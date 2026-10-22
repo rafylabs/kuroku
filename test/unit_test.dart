@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kotatsu/core/database/models/manga.dart';
-import 'package:kotatsu/core/database/models/chapter.dart';
-import 'package:kotatsu/core/database/models/manga_page.dart';
-import 'package:kotatsu/core/parser/parser_registry.dart';
-import 'package:kotatsu/core/theme/app_theme.dart';
+import 'package:kuroku/core/database/models/manga.dart';
+import 'package:kuroku/core/database/models/chapter.dart';
+import 'package:kuroku/core/database/models/manga_page.dart';
+import 'package:kuroku/core/parser/parser_registry.dart';
+import 'package:kuroku/core/theme/app_theme.dart';
 
 void main() {
-  group('Kotatsu Models & Registry Tests', () {
+  group('Kuroku Models & Registry Tests', () {
     test('Manga serialization round-trip', () {
       const manga = Manga(
         id: 'mangapill_123',

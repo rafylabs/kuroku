@@ -19,7 +19,7 @@ class AppDatabase {
 
   Future<Database> _initDatabase() async {
     final docsDir = await getApplicationDocumentsDirectory();
-    final dbPath = p.join(docsDir.path, 'kotatsu_local.db');
+    final dbPath = p.join(docsDir.path, 'kuroku_local.db');
 
     return await openDatabase(
       dbPath,

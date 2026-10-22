@@ -123,7 +123,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
               )
             : Row(
                 children: [
-                  const Text('Kotatsu', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                  const Text('Kuroku', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5)),
                   const SizedBox(width: 8),
                   GestureDetector(
                     onTap: _showSourcePicker,

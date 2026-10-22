@@ -1,6 +1,6 @@
-# Kotatsu (Cross-Platform Flutter Edition)
+# Kuroku (黒録) — Cyber Manga Reader
 
-A high-performance manga and comic reader reverse-engineered from [KotatsuApp/Kotatsu](https://github.com/KotatsuApp/Kotatsu) and reconstructed in **Flutter**, enabling seamless deployment on **iOS (non-App Store sideloading)** and Android.
+A high-performance manga and comic reader reverse-engineered from [KurokuApp/Kotatsu](https://github.com/KurokuApp/Kotatsu) and reconstructed in **Flutter**, enabling seamless deployment on **iOS (non-App Store sideloading)** and Android.
 
 ---
 
@@ -19,22 +19,22 @@ A high-performance manga and comic reader reverse-engineered from [KotatsuApp/Ko
 
 ## 📱 How to Install on iOS (Without App Store)
 
-Kotatsu is packaged as an unsigned `.ipa` ready for sideloading with any free Apple ID or permanent certificate:
+Kuroku is packaged as an unsigned `.ipa` ready for sideloading with any free Apple ID or permanent certificate:
 
 ### Method 1: AltStore / SideStore (Recommended)
-1. Download `Kotatsu.ipa` from the [GitHub Releases](https://github.com) or compile via CI.
+1. Download `Kuroku.ipa` from the [GitHub Releases](https://github.com) or compile via CI.
 2. Open **AltStore** or **SideStore** on your iPhone / iPad.
-3. Tap the **+** button in the "My Apps" tab and choose `Kotatsu.ipa`.
+3. Tap the **+** button in the "My Apps" tab and choose `Kuroku.ipa`.
 4. Sign in with your Apple ID. The app will install directly to your Home Screen.
 
 ### Method 2: TrollStore (iOS 14.0 – 17.0)
-1. Download `Kotatsu.ipa` directly in Safari on your iOS device.
+1. Download `Kuroku.ipa` directly in Safari on your iOS device.
 2. Share / Open in **TrollStore**.
 3. Tap **Install**. The app is permanently signed with no 7-day expiration.
 
 ### Method 3: Sideloadly / Scarlet (Mac or PC)
 1. Connect your iPhone to your Mac/PC via USB or Wi-Fi sync.
-2. Drag `Kotatsu.ipa` into **Sideloadly**.
+2. Drag `Kuroku.ipa` into **Sideloadly**.
 3. Enter your Apple ID and click **Start**.
 
 > **Note for iOS 16+**: Enable Developer Mode in `Settings > Privacy & Security > Developer Mode` and restart your device.
@@ -85,4 +85,4 @@ flutter analyze
 ./scripts/build-ipa.sh
 ```
 
-The resulting `Kotatsu.ipa` will be output to `build/ios/ipa/Kotatsu.ipa`.
+The resulting `Kuroku.ipa` will be output to `build/ios/ipa/Kuroku.ipa`.

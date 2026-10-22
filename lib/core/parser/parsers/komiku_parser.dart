@@ -41,7 +41,7 @@ class KomikuParser extends MangaParser {
     }
 
     try {
-      final res = await KotatsuHttpClient.instance.get<String>(
+      final res = await KurokuHttpClient.instance.get<String>(
         url,
         headers: headers,
         responseType: ResponseType.plain,
@@ -90,7 +90,7 @@ class KomikuParser extends MangaParser {
   @override
   Future<Manga> getDetails(Manga manga) async {
     try {
-      final res = await KotatsuHttpClient.instance.get<String>(
+      final res = await KurokuHttpClient.instance.get<String>(
         manga.url,
         headers: headers,
         responseType: ResponseType.plain,
@@ -113,7 +113,7 @@ class KomikuParser extends MangaParser {
   @override
   Future<List<MangaChapter>> getChapters(Manga manga) async {
     try {
-      final res = await KotatsuHttpClient.instance.get<String>(
+      final res = await KurokuHttpClient.instance.get<String>(
         manga.url,
         headers: headers,
         responseType: ResponseType.plain,
@@ -156,7 +156,7 @@ class KomikuParser extends MangaParser {
   @override
   Future<List<MangaPage>> getPages(MangaChapter chapter) async {
     try {
-      final res = await KotatsuHttpClient.instance.get<String>(
+      final res = await KurokuHttpClient.instance.get<String>(
         chapter.url,
         headers: headers,
         responseType: ResponseType.plain,
