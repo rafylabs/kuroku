@@ -20,11 +20,7 @@ void main() async {
     ),
   );
 
-  runApp(
-    const ProviderScope(
-      child: KotatsuApp(),
-    ),
-  );
+  runApp(const KotatsuApp());
 }
 
 class KotatsuApp extends StatelessWidget {
@@ -32,13 +28,15 @@ class KotatsuApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Kotatsu',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark, // Default to dark cyber theme
-      home: const MainNavigationScreen(),
+    return ProviderScope(
+      child: MaterialApp(
+        title: 'Kotatsu',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.dark, // Default to dark cyber theme
+        home: const MainNavigationScreen(),
+      ),
     );
   }
 }

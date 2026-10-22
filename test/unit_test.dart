@@ -1,0 +1,102 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kotatsu/core/database/models/manga.dart';
+import 'package:kotatsu/core/database/models/chapter.dart';
+import 'package:kotatsu/core/database/models/manga_page.dart';
+import 'package:kotatsu/core/parser/parser_registry.dart';
+import 'package:kotatsu/core/theme/app_theme.dart';
+
+void main() {
+  group('Kotatsu Models & Registry Tests', () {
+    test('Manga serialization round-trip', () {
+      const manga = Manga(
+        id: 'mangapill_123',
+        title: 'One Piece',
+        altTitle: 'Wan Pisu',
+        url: 'https://mangapill.com/manga/123/one-piece',
+        coverUrl: 'https://mangapill.com/covers/123.jpg',
+        sourceId: 'mangapill',
+        author: 'Eiichiro Oda',
+        status: MangaStatus.ongoing,
+        rating: 9.8,
+        genres: ['Action', 'Adventure', 'Fantasy'],
+        isFavorite: true,
+      );
+
+      final map = manga.toMap();
+      final decoded = Manga.fromMap(map);
+
+      expect(decoded.id, manga.id);
+      expect(decoded.title, manga.title);
+      expect(decoded.url, manga.url);
+      expect(decoded.coverUrl, manga.coverUrl);
+      expect(decoded.sourceId, manga.sourceId);
+      expect(decoded.status, MangaStatus.ongoing);
+      expect(decoded.rating, 9.8);
+      expect(decoded.genres, contains('Adventure'));
+      expect(decoded.isFavorite, isTrue);
+    });
+
+    test('MangaChapter serialization round-trip', () {
+      const chapter = MangaChapter(
+        id: 'mangapill_123_ch1100',
+        mangaId: 'mangapill_123',
+        title: 'Chapter 1100',
+        number: 1100.0,
+        url: 'https://mangapill.com/chapters/1100',
+        isRead: true,
+        lastReadPage: 15,
+        pageCount: 20,
+      );
+
+      final map = chapter.toMap();
+      final decoded = MangaChapter.fromMap(map);
+
+      expect(decoded.id, chapter.id);
+      expect(decoded.mangaId, chapter.mangaId);
+      expect(decoded.title, chapter.title);
+      expect(decoded.number, 1100.0);
+      expect(decoded.isRead, isTrue);
+      expect(decoded.lastReadPage, 15);
+      expect(decoded.pageCount, 20);
+    });
+
+    test('MangaPage serialization round-trip', () {
+      const page = MangaPage(
+        index: 5,
+        url: 'https://cdn.mangapill.com/123/1100/5.jpg',
+      );
+
+      final map = page.toMap();
+      final decoded = MangaPage.fromMap(map);
+
+      expect(decoded.index, 5);
+      expect(decoded.url, page.url);
+    });
+
+    test('ParserRegistry initializes with registered sources', () {
+      final registry = ParserRegistry.instance;
+      final parsers = registry.allParsers;
+
+      expect(parsers.length, greaterThanOrEqualTo(2));
+      expect(parsers.any((p) => p.id == 'mangapill'), isTrue);
+      expect(parsers.any((p) => p.id == 'komiku'), isTrue);
+
+      final mangapill = registry.getParser('mangapill');
+      expect(mangapill, isNotNull);
+      expect(mangapill!.domain, 'mangapill.com');
+
+      final komiku = registry.getParser('komiku');
+      expect(komiku, isNotNull);
+      expect(komiku!.domain, 'komiku.org');
+    });
+
+    test('AppTheme loads dark and light themes without error', () {
+      final dark = AppTheme.darkTheme;
+      final light = AppTheme.lightTheme;
+
+      expect(dark.useMaterial3, isTrue);
+      expect(light.useMaterial3, isTrue);
+      expect(dark.colorScheme.primary, AppTheme.cyanAccent);
+    });
+  });
+}
