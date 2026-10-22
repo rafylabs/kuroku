@@ -1,35 +1,87 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#030712"/>
-      <stop offset="100%" stop-color="#0A0E17"/>
+    <radialGradient id="bg-opt-c" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#08182B" />
+      <stop offset="55%" stop-color="#030A14" />
+      <stop offset="100%" stop-color="#010307" />
+    </radialGradient>
+
+    <!-- Linear Gradient for Monolithic Emblem -->
+    <linearGradient id="emblem-c" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7DD3FC" />
+      <stop offset="30%" stop-color="#00F0FF" />
+      <stop offset="70%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#0369A1" />
     </linearGradient>
-    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00F0FF"/>
-      <stop offset="100%" stop-color="#06B6D4"/>
-    </linearGradient>
-    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38BDF8"/>
-      <stop offset="100%" stop-color="#0284C7"/>
-    </linearGradient>
+
+    <!-- Crisp Subtle Glow -->
+    <filter id="glow-c" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="core-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="24" result="glow" />
+      <feMerge>
+        <feMergeNode in="glow" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
   </defs>
 
-  <!-- Dark Obsidian Rounded Base (Squircle) -->
-  <rect width="1024" height="1024" rx="224" fill="url(#bgGrad)"/>
-  
-  <!-- Subtle Inner Border -->
-  <rect x="16" y="16" width="992" height="992" rx="208" fill="none" stroke="#00F0FF" stroke-opacity="0.15" stroke-width="4"/>
+  <!-- Squircle Base Canvas -->
+  <rect width="1024" height="1024" rx="224" fill="url(#bg-opt-c)" />
+  <rect x="2" y="2" width="1020" height="1020" rx="222" fill="none" stroke="#00F0FF" stroke-opacity="0.14" stroke-width="4" />
 
-  <!-- Optical Center Geometric 'K' Emblem -->
-  <!-- Left Vertical Spine (Manga Volume Binding) -->
-  <rect x="256" y="240" width="96" height="544" rx="48" fill="url(#cyanGrad)"/>
+  <!-- Ambient Internal Bloom Behind Glyph -->
+  <circle cx="512" cy="512" r="260" fill="#00F0FF" opacity="0.08" filter="url(#core-glow)" />
 
-  <!-- Top-Right Diagonal Wing (Upper Manga Page / Bookmark) -->
-  <path d="M 460 512 L 672 300 C 696 276 736 276 760 300 C 784 324 784 364 760 388 L 576 572 C 552 596 512 596 488 572 Z" fill="url(#cyanGrad)"/>
+  <!-- ============================================== -->
+  <!-- OPTION C: THE MINIMALIST JAPANESE CYBER "K"    -->
+  <!-- ============================================== -->
+  <!--
+    Architectural Balance:
+    - Vertical Manga Spine: X in [250, 360] (width 110px), Y in [212, 812] (height 600px)
+    - Dynamic Chevron Blade:
+      Branching from (440, 512) out to (774, 212) and (774, 812)
+    - Golden Ratio Negative Space between Spine and Chevron: 80px
+    - Symmetrical, bold, instantly legible at 16px
+  -->
+  <g filter="url(#glow-c)">
+    <!-- 1. Left Pillar (The Spine / Binding) -->
+    <rect x="250" y="212" width="110" height="600" rx="32" fill="url(#emblem-c)" />
+    <!-- 1px Top-Left Specular Catchlight -->
+    <rect x="252" y="214" width="106" height="596" rx="30" fill="none" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="2" />
 
-  <!-- Bottom-Right Diagonal Wing (Lower Manga Page) -->
-  <path d="M 488 452 C 512 428 552 428 576 452 L 760 636 C 784 660 784 700 760 724 C 736 748 696 748 672 724 L 460 512 Z" fill="url(#glowGrad)"/>
+    <!-- 2. Upper Diagonal Chevron Blade (Page Flip) -->
+    <path d="M 440 472
+             L 692 220
+             H 774
+             L 774 302
+             L 522 554
+             H 440
+             Z"
+          fill="url(#emblem-c)" />
+    <!-- Upper Blade Edge Highlight -->
+    <path d="M 440 472 L 692 220 H 774" fill="none" stroke="#FFFFFF" stroke-opacity="0.45" stroke-width="2" />
 
-  <!-- Center HUD Diamond Node -->
-  <polygon points="460,512 490,482 520,512 490,542" fill="#FFFFFF" opacity="0.95"/>
+    <!-- 3. Lower Diagonal Chevron Blade (Exact Mirror across Y=512) -->
+    <path d="M 440 552
+             L 692 804
+             H 774
+             L 774 722
+             L 522 470
+             H 440
+             Z"
+          fill="url(#emblem-c)" />
+
+    <!-- 4. Floating Milestone Bookmark Indicator -->
+    <rect x="396" y="492" width="40" height="40" rx="8" 
+          transform="rotate(45 416 512)" 
+          fill="#FFFFFF" 
+          filter="url(#glow-c)" />
+  </g>
 </svg>
