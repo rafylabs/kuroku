@@ -6,9 +6,13 @@ import 'features/catalog/screens/catalog_screen.dart';
 import 'features/library/screens/library_screen.dart';
 import 'features/history/screens/history_screen.dart';
 import 'features/settings/screens/settings_screen.dart';
+import 'core/parser/parser_registry.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load user custom sources from local database
+  await ParserRegistry.instance.loadCustomSources();
 
   // Dark edge-to-edge system UI overlay
   SystemChrome.setSystemUIOverlayStyle(

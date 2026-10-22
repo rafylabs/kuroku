@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:extended_image/extended_image.dart';
 import '../../../core/database/models/manga.dart';
 import '../../../core/parser/parser_registry.dart';
+import '../../../core/parser/dynamic_manga_parser.dart';
 import '../providers/catalog_provider.dart';
 import 'manga_detail_screen.dart';
 
@@ -37,12 +38,140 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     }
   }
 
+  void _showAddSourceDialog() {
+    final nameController = TextEditingController();
+    final domainController = TextEditingController();
+    String selectedType = 'madara';
+    String selectedLocale = 'id';
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (innerCtx, setDialogState) {
+          return AlertDialog(
+            title: const Text('Add Custom Manga Source', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Source Name', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      hintText: 'e.g. Komikcast / Manhwa18',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Domain / Website URL', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: domainController,
+                    decoration: const InputDecoration(
+                      hintText: 'e.g. komikcast.bz or manhwa18.com',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Website Template', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedType,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'madara',
+                        child: Text('WordPress Madara (Default / Popular)', style: TextStyle(fontSize: 12)),
+                      ),
+                      DropdownMenuItem(
+                        value: 'themesia',
+                        child: Text('MangaThemesia (Kiryuu/Komikcast)', style: TextStyle(fontSize: 12)),
+                      ),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => selectedType = val);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Language', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedLocale,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'id', child: Text('Indonesian (ID)')),
+                      DropdownMenuItem(value: 'en', child: Text('English (EN)')),
+                      DropdownMenuItem(value: 'all', child: Text('Multi / Other')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => selectedLocale = val);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final name = nameController.text.trim();
+                  var domain = domainController.text.trim();
+                  if (name.isEmpty || domain.isEmpty) return;
+
+                  domain = domain.replaceAll('https://', '').replaceAll('http://', '').replaceAll('/', '');
+
+                  final id = 'custom_${DateTime.now().millisecondsSinceEpoch}';
+                  final config = CustomSourceConfig(
+                    id: id,
+                    name: name,
+                    domain: domain,
+                    locale: selectedLocale,
+                    type: selectedType,
+                  );
+
+                  await ParserRegistry.instance.addCustomSource(config);
+                  final newParser = ParserRegistry.instance.getParser(id);
+                  if (newParser != null) {
+                    ref.read(activeParserProvider.notifier).state = newParser;
+                  }
+
+                  if (dialogCtx.mounted) {
+                    Navigator.pop(dialogCtx);
+                  }
+                  if (mounted) {
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text('Add Source'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   void _showSourcePicker() {
     final parsers = ParserRegistry.instance.allParsers;
     final activeParser = ref.read(activeParserProvider);
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -54,46 +183,109 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Text(
-                    'Select Manga Source',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Select Manga Source',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline, color: Color(0xFF00F0FF)),
+                        tooltip: 'Add Custom Source',
+                        onPressed: () => _showAddSourceDialog(),
+                      ),
+                    ],
                   ),
                 ),
                 const Divider(),
-                ...parsers.map((parser) {
-                  final isSelected = parser.id == activeParser.id;
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: isSelected
-                          ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)
-                          : Theme.of(context).colorScheme.surfaceContainerHighest,
-                      child: Text(
-                        parser.locale.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: parsers.length,
+                    itemBuilder: (context, index) {
+                      final parser = parsers[index];
+                      final isSelected = parser.id == activeParser.id;
+                      final isCustom = parser.id.startsWith('custom_');
+
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: isSelected
+                              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)
+                              : Theme.of(context).colorScheme.surfaceContainerHighest,
+                          child: Text(
+                            parser.locale.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    title: Text(
-                      parser.name,
-                      style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                    subtitle: Text(parser.domain, style: const TextStyle(fontSize: 12)),
-                    trailing: isSelected
-                        ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary)
-                        : null,
-                    onTap: () {
-                      ref.read(activeParserProvider.notifier).state = parser;
-                      Navigator.pop(ctx);
+                        title: Row(
+                          children: [
+                            Text(
+                              parser.name,
+                              style: TextStyle(
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                            if (isCustom) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text('CUSTOM', style: TextStyle(fontSize: 9, color: Colors.amber, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ],
+                        ),
+                        subtitle: Text(parser.domain, style: const TextStyle(fontSize: 12)),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isCustom)
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                                onPressed: () async {
+                                  await ParserRegistry.instance.removeCustomSource(parser.id);
+                                  if (ref.read(activeParserProvider).id == parser.id) {
+                                    ref.read(activeParserProvider.notifier).state = ParserRegistry.instance.defaultParser;
+                                  }
+                                  if (ctx.mounted) {
+                                    Navigator.pop(ctx);
+                                  }
+                                },
+                              ),
+                            if (isSelected)
+                              Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary),
+                          ],
+                        ),
+                        onTap: () {
+                          ref.read(activeParserProvider.notifier).state = parser;
+                          Navigator.pop(ctx);
+                        },
+                      );
                     },
-                  );
-                }),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(44),
+                      side: const BorderSide(color: Color(0xFF00F0FF)),
+                    ),
+                    icon: const Icon(Icons.add, color: Color(0xFF00F0FF)),
+                    label: const Text('Add Custom Website Source', style: TextStyle(color: Color(0xFF00F0FF), fontWeight: FontWeight.bold)),
+                    onPressed: () => _showAddSourceDialog(),
+                  ),
+                ),
               ],
             ),
           ),

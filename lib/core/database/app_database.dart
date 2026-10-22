@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 import 'models/manga.dart';
 import 'models/chapter.dart';
 import 'models/history_entry.dart';
+import '../parser/dynamic_manga_parser.dart';
 
 class AppDatabase {
   static final AppDatabase instance = AppDatabase._internal();
@@ -24,6 +25,18 @@ class AppDatabase {
     return await openDatabase(
       dbPath,
       version: 1,
+      onOpen: (db) async {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS custom_sources (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            domain TEXT NOT NULL,
+            locale TEXT NOT NULL DEFAULT 'id',
+            type TEXT NOT NULL DEFAULT 'madara',
+            config TEXT
+          )
+        ''');
+      },
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE manga (
@@ -230,5 +243,30 @@ class AppDatabase {
         updatedAt: DateTime.tryParse(row['hist_updated'] as String) ?? DateTime.now(),
       );
     }).toList();
+  }
+
+  // --- Custom Sources Operations ---
+  Future<List<CustomSourceConfig>> getCustomSources() async {
+    final db = await database;
+    final results = await db.query('custom_sources', orderBy: 'name ASC');
+    return results.map((r) => CustomSourceConfig.fromMap(r)).toList();
+  }
+
+  Future<void> upsertCustomSource(CustomSourceConfig config) async {
+    final db = await database;
+    await db.insert(
+      'custom_sources',
+      config.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> deleteCustomSource(String id) async {
+    final db = await database;
+    await db.delete(
+      'custom_sources',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 }
