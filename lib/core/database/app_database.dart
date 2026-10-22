@@ -177,13 +177,43 @@ class AppDatabase {
 
   Future<List<MangaChapter>> getChapters(String mangaId) async {
     final db = await database;
+    final cleanId = mangaId.contains('_') ? mangaId.substring(mangaId.indexOf('_') + 1) : mangaId;
     final results = await db.query(
       'chapters',
-      where: 'manga_id = ?',
-      whereArgs: [mangaId],
+      where: 'manga_id = ? OR manga_id = ? OR manga_id LIKE ?',
+      whereArgs: [mangaId, cleanId, '%$cleanId%'],
       orderBy: 'number DESC',
     );
-    return results.map((c) => MangaChapter.fromMap(c)).toList();
+    final chapters = results.map((c) => MangaChapter.fromMap(c)).toList();
+
+    // Check downloads table for any downloaded chapters not in chapters table
+    try {
+      final downloads = await db.query(
+        'downloads',
+        where: 'manga_id = ? OR manga_id = ? OR manga_id LIKE ?',
+        whereArgs: [mangaId, cleanId, '%$cleanId%'],
+        orderBy: 'downloaded_at DESC',
+      );
+
+      final existingIds = chapters.map((c) => c.id).toSet();
+      for (final d in downloads) {
+        final chId = d['chapter_id'] as String;
+        if (!existingIds.contains(chId)) {
+          final rawId = chId.split('_').last;
+          chapters.add(MangaChapter(
+            id: chId,
+            mangaId: mangaId,
+            title: 'Downloaded Chapter ($rawId)',
+            number: 1.0,
+            url: rawId,
+            pageCount: d['page_count'] as int? ?? 0,
+          ));
+        }
+      }
+    } catch (_) {}
+
+    chapters.sort((a, b) => b.number.compareTo(a.number));
+    return chapters;
   }
 
   Future<void> updateChapterProgress(String chapterId, int page, bool isRead) async {

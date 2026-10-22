@@ -173,6 +173,8 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
       if (lastReadIndex > 0) return _chapters[lastReadIndex - 1];
       return read.first;
     }
+    final downloaded = _chapters.where((c) => DownloadManager.instance.isDownloaded(c.id)).toList();
+    if (downloaded.isNotEmpty) return downloaded.last;
     return _chapters.last;
   }
 
