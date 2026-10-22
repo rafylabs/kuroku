@@ -1,6 +1,16 @@
 # Kuroku (黒録) — Cyber Manga Reader
 
-A high-performance manga and comic reader reverse-engineered from [KurokuApp/Kotatsu](https://github.com/KurokuApp/Kotatsu) and reconstructed in **Flutter**, enabling seamless deployment on **iOS (non-App Store sideloading)** and Android.
+[![Latest Release](https://img.shields.io/github/v/release/rafylabs/kuroku?color=00F0FF&label=Release&style=for-the-badge)](https://github.com/rafylabs/kuroku/releases/latest)
+[![Download iOS](https://img.shields.io/badge/Download-iOS%20(.IPA)-00F0FF?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/rafylabs/kuroku/releases/latest/download/Kuroku.ipa)
+[![Download Android](https://img.shields.io/badge/Download-Android%20(.APK)-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/rafylabs/kuroku/releases/latest/download/Kuroku.apk)
+
+A high-performance manga and comic reader reverse-engineered from [KotatsuApp/Kotatsu](https://github.com/KotatsuApp/Kotatsu) and reconstructed in **Flutter**, enabling seamless deployment on **iOS (non-App Store sideloading)** and **Android**.
+
+### 📲 Direct Downloads
+| Platform | Format | Direct Download | Installation Instructions |
+|---|---|---|---|
+| **iOS** | `.ipa` (Universal) | [⬇️ **Download Kuroku.ipa**](https://github.com/rafylabs/kuroku/releases/latest/download/Kuroku.ipa) | Sideload via AltStore, SideStore, TrollStore, or Sideloadly |
+| **Android** | `.apk` (Release) | [⬇️ **Download Kuroku.apk**](https://github.com/rafylabs/kuroku/releases/latest/download/Kuroku.apk) | Direct install APK (allow unknown sources) |
 
 ---
 

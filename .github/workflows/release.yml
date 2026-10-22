@@ -1,0 +1,147 @@
+name: Build & Release (iOS & Android)
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-ios:
+    name: Build iOS IPA (Sideload)
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build iOS Application (No Code Sign)
+        run: flutter build ios --no-codesign --release
+
+      - name: Package into Sideloadable IPA
+        run: |
+          mkdir -p build/release-assets/Payload
+          cp -r build/ios/iphoneos/Runner.app build/release-assets/Payload/Kuroku.app
+          cd build/release-assets
+          zip -r -q Kuroku.ipa Payload
+          rm -rf Payload
+
+      - name: Upload iOS IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kuroku-iOS
+          path: build/release-assets/Kuroku.ipa
+          retention-days: 7
+
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Release APK
+        run: flutter build apk --release
+
+      - name: Prepare APK Asset
+        run: |
+          mkdir -p build/release-assets
+          cp build/app/outputs/flutter-apk/app-release.apk build/release-assets/Kuroku.apk
+
+      - name: Upload Android APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kuroku-Android
+          path: build/release-assets/Kuroku.apk
+          retention-days: 7
+
+  publish-release:
+    name: Publish Public GitHub Release
+    needs: [build-ios, build-android]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Download iOS Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Kuroku-iOS
+          path: release-files
+
+      - name: Download Android Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Kuroku-Android
+          path: release-files
+
+      - name: Determine Release Tag
+        id: tag_info
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=v1.0.0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish / Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag_info.outputs.tag }}
+          name: "Kuroku ${{ steps.tag_info.outputs.tag }} — Cross-Platform Release"
+          draft: false
+          prerelease: false
+          files: |
+            release-files/Kuroku.ipa
+            release-files/Kuroku.apk
+          body: |
+            ### 📱 Kuroku (黒録) Direct Downloads
+            
+            Download the app directly on your mobile device below without needing an App Store or Play Store account:
+            
+            | Platform | File | Direct Download | Installation Instructions |
+            |---|---|---|---|
+            | **iOS** | `Kuroku.ipa` | [Download Kuroku.ipa](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag_info.outputs.tag }}/Kuroku.ipa) | Sideload via AltStore, SideStore, TrollStore, or Sideloadly |
+            | **Android** | `Kuroku.apk` | [Download Kuroku.apk](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag_info.outputs.tag }}/Kuroku.apk) | Direct APK installation (allow unknown sources) |
+            
+            ---
+            
+            #### 🍏 How to Install on iOS:
+            1. **AltStore / SideStore (Recommended)**: Download `Kuroku.ipa` directly in Safari on your iPhone/iPad. Open AltStore, tap `+`, select `Kuroku.ipa`.
+            2. **TrollStore (iOS 14.0 - 17.0)**: Download `Kuroku.ipa` and open in TrollStore for permanent install without 7-day expiration.
+            3. **Sideloadly / Scarlet (Mac/PC)**: Drag `Kuroku.ipa` and install via your free Apple ID.
+            
+            *Note for iOS 16+: Enable Developer Mode in Settings > Privacy & Security > Developer Mode.*
+            
+            #### 🤖 How to Install on Android:
+            1. Download `Kuroku.apk` directly in Chrome.
+            2. Tap the downloaded file to install. Allow "Install unknown apps" if prompted.
