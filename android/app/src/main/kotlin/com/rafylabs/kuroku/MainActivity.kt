@@ -1,4 +1,4 @@
-package org.koitharu.kotatsu.kotatsu
+package com.rafylabs.kuroku
 
 import io.flutter.embedding.android.FlutterActivity
 
