@@ -112,6 +112,19 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
     }
   }
 
+  MangaChapter? get _resumeChapter {
+    if (_chapters.isEmpty) return null;
+    final inProgress = _chapters.where((c) => c.lastReadPage > 0 && !c.isRead).toList();
+    if (inProgress.isNotEmpty) return inProgress.first;
+    final read = _chapters.where((c) => c.isRead).toList();
+    if (read.isNotEmpty) {
+      final lastReadIndex = _chapters.indexOf(read.first);
+      if (lastReadIndex > 0) return _chapters[lastReadIndex - 1];
+      return read.first;
+    }
+    return _chapters.last;
+  }
+
   void _openReader(MangaChapter chapter, [int initialPage = 0]) {
     Navigator.push(
       context,
@@ -245,8 +258,8 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: _chapters.isNotEmpty
-                              ? () => _openReader(_chapters.last) // Read Chapter 1
+                          onPressed: _resumeChapter != null
+                              ? () => _openReader(_resumeChapter!, _resumeChapter!.lastReadPage)
                               : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Theme.of(context).colorScheme.primary,
@@ -254,9 +267,13 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                           icon: const Icon(Icons.play_arrow),
-                          label: const Text(
-                            'Start Reading',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          label: Text(
+                            _resumeChapter != null && _resumeChapter!.lastReadPage > 0
+                                ? 'Resume Ch. ${_resumeChapter!.number.toString().replaceAll(RegExp(r"\.0$"), "")} (p. ${_resumeChapter!.lastReadPage + 1})'
+                                : _chapters.isNotEmpty
+                                    ? 'Start Ch. ${_chapters.last.number.toString().replaceAll(RegExp(r"\.0$"), "")}'
+                                    : 'Start Reading',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
