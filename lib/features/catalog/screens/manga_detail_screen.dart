@@ -5,6 +5,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/models/manga.dart';
 import '../../../core/database/models/chapter.dart';
 import '../../../core/parser/parser_registry.dart';
+import '../../../core/download/download_manager.dart';
 import '../../library/providers/library_provider.dart';
 import '../../reader/providers/reader_provider.dart';
 import '../../reader/screens/manga_reader_screen.dart';
@@ -86,6 +87,18 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
         await AppDatabase.instance.upsertChapters(_chapters);
       }
     } catch (e) {
+      // Offline fallback: load cached manga details and chapters from SQLite
+      final savedManga = await AppDatabase.instance.getManga(widget.manga.id);
+      final savedChapters = await AppDatabase.instance.getChapters(widget.manga.id);
+      if (savedChapters.isNotEmpty && mounted) {
+        setState(() {
+          _currentManga = (savedManga ?? widget.manga).copyWith(isFavorite: _isFavorite);
+          _chapters = savedChapters;
+          _isLoading = false;
+          _error = null;
+        });
+        return;
+      }
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -123,6 +136,95 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
       return read.first;
     }
     return _chapters.last;
+  }
+
+  Future<void> _downloadChapter(MangaChapter chapter) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Downloading ${chapter.title}...'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+
+    try {
+      await DownloadManager.instance.downloadChapter(
+        manga: _currentManga,
+        chapter: chapter,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Downloaded ${chapter.title} for offline reading'),
+            backgroundColor: Colors.green.shade800,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Download failed: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  void _confirmDeleteDownload(MangaChapter chapter) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Download'),
+        content: Text('Hapus file offline untuk ${chapter.title}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await DownloadManager.instance.deleteDownload(chapter);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Download dihapus')),
+                );
+              }
+            },
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _downloadAllChapters() async {
+    final unDownloaded = _chapters.where((c) => !DownloadManager.instance.isDownloaded(c.id)).toList();
+    if (unDownloaded.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Semua chapter sudah terdownload')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Memulai download ${unDownloaded.length} chapter...'),
+      ),
+    );
+
+    for (final ch in unDownloaded) {
+      if (!mounted) break;
+      try {
+        await DownloadManager.instance.downloadChapter(
+          manga: _currentManga,
+          chapter: ch,
+        );
+      } catch (_) {}
+    }
   }
 
   void _openReader(MangaChapter chapter, [int initialPage = 0]) {
@@ -343,12 +445,23 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
                         'Chapters (${_chapters.length})',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
-                      if (_isLoading)
-                        const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_chapters.isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.download_for_offline_rounded, size: 22, color: Color(0xFF00F0FF)),
+                              tooltip: 'Download All Chapters for Offline',
+                              onPressed: _downloadAllChapters,
+                            ),
+                          if (_isLoading)
+                            const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                        ],
+                      ),
                     ],
                   ),
                 ],
@@ -387,9 +500,56 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
                             style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.primary),
                           )
                         : null,
-                    trailing: ch.isRead
-                        ? const Icon(Icons.check_circle, size: 18, color: Colors.green)
-                        : const Icon(Icons.chevron_right, size: 18),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ValueListenableBuilder<Set<String>>(
+                          valueListenable: DownloadManager.instance.downloadedChapterIds,
+                          builder: (context, downloadedIds, _) {
+                            final isDownloaded = downloadedIds.contains(ch.id);
+                            return ValueListenableBuilder<Map<String, double>>(
+                              valueListenable: DownloadManager.instance.activeDownloads,
+                              builder: (context, activeMap, _) {
+                                final progress = activeMap[ch.id];
+                                if (progress != null) {
+                                  return SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(3),
+                                      child: CircularProgressIndicator(
+                                        value: progress > 0.05 ? progress : null,
+                                        strokeWidth: 2.5,
+                                        color: const Color(0xFF00F0FF),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                if (isDownloaded) {
+                                  return IconButton(
+                                    icon: const Icon(Icons.download_done_rounded, color: Color(0xFF00F0FF), size: 20),
+                                    tooltip: 'Downloaded (Offline) - Tap to delete',
+                                    onPressed: () => _confirmDeleteDownload(ch),
+                                  );
+                                }
+                                return IconButton(
+                                  icon: const Icon(Icons.download_outlined, size: 20),
+                                  tooltip: 'Download Chapter',
+                                  onPressed: () => _downloadChapter(ch),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                        if (ch.isRead)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 4),
+                            child: Icon(Icons.check_circle, size: 16, color: Colors.green),
+                          )
+                        else
+                          const Icon(Icons.chevron_right, size: 18),
+                      ],
+                    ),
                     onTap: () => _openReader(ch, ch.lastReadPage),
                   );
                 },

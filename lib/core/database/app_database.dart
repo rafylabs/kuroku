@@ -36,6 +36,16 @@ class AppDatabase {
             config TEXT
           )
         ''');
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS downloads (
+            chapter_id TEXT PRIMARY KEY,
+            manga_id TEXT NOT NULL,
+            dir_path TEXT NOT NULL,
+            page_count INTEGER NOT NULL,
+            downloaded_at TEXT NOT NULL
+          )
+        ''');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_downloads_manga ON downloads(manga_id);');
       },
       onCreate: (db, version) async {
         await db.execute('''
@@ -85,9 +95,21 @@ class AppDatabase {
           )
         ''');
 
+        await db.execute('''
+          CREATE TABLE downloads (
+            chapter_id TEXT PRIMARY KEY,
+            manga_id TEXT NOT NULL,
+            dir_path TEXT NOT NULL,
+            page_count INTEGER NOT NULL,
+            downloaded_at TEXT NOT NULL,
+            FOREIGN KEY(manga_id) REFERENCES manga(id) ON DELETE CASCADE
+          )
+        ''');
+
         await db.execute('CREATE INDEX idx_manga_fav ON manga(is_favorite);');
         await db.execute('CREATE INDEX idx_chapters_manga ON chapters(manga_id);');
         await db.execute('CREATE INDEX idx_history_updated ON history(updated_at DESC);');
+        await db.execute('CREATE INDEX idx_downloads_manga ON downloads(manga_id);');
       },
     );
   }
@@ -268,5 +290,67 @@ class AppDatabase {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  // --- Downloads Operations ---
+  Future<void> saveDownload({
+    required String chapterId,
+    required String mangaId,
+    required String dirPath,
+    required int pageCount,
+  }) async {
+    final db = await database;
+    await db.insert(
+      'downloads',
+      {
+        'chapter_id': chapterId,
+        'manga_id': mangaId,
+        'dir_path': dirPath,
+        'page_count': pageCount,
+        'downloaded_at': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> deleteDownload(String chapterId) async {
+    final db = await database;
+    await db.delete(
+      'downloads',
+      where: 'chapter_id = ?',
+      whereArgs: [chapterId],
+    );
+  }
+
+  Future<bool> isChapterDownloaded(String chapterId) async {
+    final db = await database;
+    final res = await db.query(
+      'downloads',
+      where: 'chapter_id = ?',
+      whereArgs: [chapterId],
+      limit: 1,
+    );
+    return res.isNotEmpty;
+  }
+
+  Future<List<String>> getDownloadedChapterIds(String mangaId) async {
+    final db = await database;
+    final res = await db.query(
+      'downloads',
+      columns: ['chapter_id'],
+      where: 'manga_id = ?',
+      whereArgs: [mangaId],
+    );
+    return res.map((r) => r['chapter_id'] as String).toList();
+  }
+
+  Future<List<Manga>> getDownloadedManga() async {
+    final db = await database;
+    final results = await db.rawQuery('''
+      SELECT DISTINCT m.* FROM manga m
+      INNER JOIN downloads d ON m.id = d.manga_id
+      ORDER BY m.title ASC
+    ''');
+    return results.map((r) => Manga.fromMap(r)).toList();
   }
 }

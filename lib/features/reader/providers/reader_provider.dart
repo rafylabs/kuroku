@@ -4,6 +4,7 @@ import '../../../core/database/models/manga.dart';
 import '../../../core/database/models/chapter.dart';
 import '../../../core/database/models/manga_page.dart';
 import '../../../core/parser/parser_registry.dart';
+import '../../../core/download/download_manager.dart';
 
 enum ReaderMode {
   webtoon,
@@ -73,6 +74,24 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
   Future<void> loadPages() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
+      // 1. Check if chapter is downloaded locally on device
+      final downloadedPages = await DownloadManager.instance.getDownloadedPages(arg.chapter);
+      if (downloadedPages != null && downloadedPages.isNotEmpty) {
+        state = state.copyWith(
+          pages: downloadedPages,
+          currentPage: arg.initialPage,
+          isLoading: false,
+        );
+
+        await AppDatabase.instance.recordHistory(
+          manga: arg.manga,
+          chapter: arg.chapter,
+          page: arg.initialPage,
+        );
+        return;
+      }
+
+      // 2. Fetch from online parser
       final parser = ParserRegistry.instance.getParser(arg.manga.sourceId) ??
           ParserRegistry.instance.defaultParser;
 

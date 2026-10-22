@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -324,6 +325,104 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
     );
   }
 
+  Widget _buildPageItem(
+    MangaPage page,
+    Map<String, String>? headers, {
+    bool inPageView = false,
+  }) {
+    final isLocal = !page.url.startsWith('http');
+
+    if (isLocal) {
+      return ExtendedImage.file(
+        File(page.url),
+        fit: BoxFit.contain,
+        mode: ExtendedImageMode.gesture,
+        initGestureConfigHandler: (state) {
+          return GestureConfig(
+            minScale: 1.0,
+            animationMinScale: 0.8,
+            maxScale: 3.0,
+            animationMaxScale: 3.5,
+            speed: 1.0,
+            inertialSpeed: 100.0,
+            initialScale: 1.0,
+            inPageView: inPageView,
+          );
+        },
+        loadStateChanged: (state) {
+          if (state.extendedImageLoadState == LoadState.loading) {
+            return inPageView
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF00F0FF), strokeWidth: 2),
+                  )
+                : Container(
+                    height: 450,
+                    color: Colors.black,
+                    child: const Center(
+                      child: CircularProgressIndicator(color: Color(0xFF00F0FF), strokeWidth: 2),
+                    ),
+                  );
+          }
+          if (state.extendedImageLoadState == LoadState.failed) {
+            return Container(
+              height: 300,
+              color: Colors.black26,
+              child: const Center(
+                child: Icon(Icons.broken_image_outlined, color: Colors.grey, size: 36),
+              ),
+            );
+          }
+          return null;
+        },
+      );
+    }
+
+    return ExtendedImage.network(
+      page.url,
+      fit: BoxFit.contain,
+      headers: headers,
+      cache: true,
+      mode: ExtendedImageMode.gesture,
+      initGestureConfigHandler: (state) {
+        return GestureConfig(
+          minScale: 1.0,
+          animationMinScale: 0.8,
+          maxScale: 3.0,
+          animationMaxScale: 3.5,
+          speed: 1.0,
+          inertialSpeed: 100.0,
+          initialScale: 1.0,
+          inPageView: inPageView,
+        );
+      },
+      loadStateChanged: (state) {
+        if (state.extendedImageLoadState == LoadState.loading) {
+          return inPageView
+              ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF00F0FF), strokeWidth: 2),
+                )
+              : Container(
+                  height: 450,
+                  color: Colors.black,
+                  child: const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF00F0FF), strokeWidth: 2),
+                  ),
+                );
+        }
+        if (state.extendedImageLoadState == LoadState.failed) {
+          return Container(
+            height: 300,
+            color: Colors.black26,
+            child: const Center(
+              child: Icon(Icons.broken_image_outlined, color: Colors.grey, size: 36),
+            ),
+          );
+        }
+        return null;
+      },
+    );
+  }
+
   // Webtoon (Continuous vertical list via ScrollablePositionedList)
   Widget _buildWebtoonView(
     List<MangaPage> pages,
@@ -338,37 +437,7 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
       itemCount: pages.length,
       itemBuilder: (context, index) {
         final page = pages[index];
-        return ExtendedImage.network(
-          page.url,
-          fit: BoxFit.contain,
-          headers: headers,
-          cache: true,
-          mode: ExtendedImageMode.gesture,
-          initGestureConfigHandler: (state) {
-            return GestureConfig(
-              minScale: 1.0,
-              animationMinScale: 0.8,
-              maxScale: 3.0,
-              animationMaxScale: 3.5,
-              speed: 1.0,
-              inertialSpeed: 100.0,
-              initialScale: 1.0,
-              inPageView: false,
-            );
-          },
-          loadStateChanged: (state) {
-            if (state.extendedImageLoadState == LoadState.loading) {
-              return Container(
-                height: 450,
-                color: Colors.black,
-                child: const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF00F0FF), strokeWidth: 2),
-                ),
-              );
-            }
-            return null;
-          },
-        );
+        return _buildPageItem(page, headers, inPageView: false);
       },
     );
   }
@@ -391,33 +460,7 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
       },
       itemBuilder: (context, index) {
         final page = pages[index];
-        return ExtendedImage.network(
-          page.url,
-          fit: BoxFit.contain,
-          headers: headers,
-          cache: true,
-          mode: ExtendedImageMode.gesture,
-          initGestureConfigHandler: (state) {
-            return GestureConfig(
-              minScale: 1.0,
-              animationMinScale: 0.8,
-              maxScale: 3.0,
-              animationMaxScale: 3.5,
-              speed: 1.0,
-              inertialSpeed: 100.0,
-              initialScale: 1.0,
-              inPageView: true,
-            );
-          },
-          loadStateChanged: (state) {
-            if (state.extendedImageLoadState == LoadState.loading) {
-              return const Center(
-                child: CircularProgressIndicator(color: Color(0xFF00F0FF), strokeWidth: 2),
-              );
-            }
-            return null;
-          },
-        );
+        return _buildPageItem(page, headers, inPageView: true);
       },
     );
   }

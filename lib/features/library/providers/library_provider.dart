@@ -3,15 +3,24 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/models/manga.dart';
 
+enum LibraryFilter { favorites, downloaded }
+
+final libraryFilterProvider = StateProvider<LibraryFilter>((ref) => LibraryFilter.favorites);
+
 class LibraryNotifier extends StateNotifier<AsyncValue<List<Manga>>> {
-  LibraryNotifier() : super(const AsyncValue.loading()) {
-    loadFavorites();
+  final Ref ref;
+
+  LibraryNotifier(this.ref) : super(const AsyncValue.loading()) {
+    loadManga();
   }
 
-  Future<void> loadFavorites() async {
+  Future<void> loadManga() async {
     state = const AsyncValue.loading();
     try {
-      final list = await AppDatabase.instance.getFavorites();
+      final filter = ref.read(libraryFilterProvider);
+      final list = filter == LibraryFilter.favorites
+          ? await AppDatabase.instance.getFavorites()
+          : await AppDatabase.instance.getDownloadedManga();
       state = AsyncValue.data(list);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -20,11 +29,12 @@ class LibraryNotifier extends StateNotifier<AsyncValue<List<Manga>>> {
 
   Future<bool> toggleFavorite(Manga manga) async {
     final newStatus = await AppDatabase.instance.toggleFavorite(manga);
-    await loadFavorites();
+    await loadManga();
     return newStatus;
   }
 }
 
 final libraryProvider = StateNotifierProvider<LibraryNotifier, AsyncValue<List<Manga>>>((ref) {
-  return LibraryNotifier();
+  ref.watch(libraryFilterProvider);
+  return LibraryNotifier(ref);
 });

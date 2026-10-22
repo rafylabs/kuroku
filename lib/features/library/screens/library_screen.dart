@@ -11,6 +11,7 @@ class LibraryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final libraryAsync = ref.watch(libraryProvider);
+    final activeFilter = ref.watch(libraryFilterProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -18,33 +19,115 @@ class LibraryScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.read(libraryProvider.notifier).loadFavorites(),
+            onPressed: () => ref.read(libraryProvider.notifier).loadManga(),
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: Row(
+              children: [
+                ChoiceChip(
+                  label: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.bookmark_rounded, size: 14),
+                      SizedBox(width: 4),
+                      Text('Favorit'),
+                    ],
+                  ),
+                  selected: activeFilter == LibraryFilter.favorites,
+                  selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                  side: BorderSide(
+                    color: activeFilter == LibraryFilter.favorites
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).dividerColor,
+                  ),
+                  labelStyle: TextStyle(
+                    color: activeFilter == LibraryFilter.favorites
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                    fontWeight: activeFilter == LibraryFilter.favorites
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    fontSize: 12,
+                  ),
+                  onSelected: (_) {
+                    ref.read(libraryFilterProvider.notifier).state = LibraryFilter.favorites;
+                  },
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.download_for_offline_rounded, size: 14),
+                      SizedBox(width: 4),
+                      Text('Didownload (Offline)'),
+                    ],
+                  ),
+                  selected: activeFilter == LibraryFilter.downloaded,
+                  selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                  side: BorderSide(
+                    color: activeFilter == LibraryFilter.downloaded
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).dividerColor,
+                  ),
+                  labelStyle: TextStyle(
+                    color: activeFilter == LibraryFilter.downloaded
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                    fontWeight: activeFilter == LibraryFilter.downloaded
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    fontSize: 12,
+                  ),
+                  onSelected: (_) {
+                    ref.read(libraryFilterProvider.notifier).state = LibraryFilter.downloaded;
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
       body: libraryAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
           child: Text('Failed to load library: $err'),
         ),
-        data: (favorites) {
-          if (favorites.isEmpty) {
+        data: (items) {
+          if (items.isEmpty) {
+            final isDownloadView = activeFilter == LibraryFilter.downloaded;
             return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.collections_bookmark_outlined, size: 64, color: Colors.grey.shade600),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Your Library is Empty',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Browse sources and bookmark manga to read offline.',
-                    style: TextStyle(color: Colors.grey, fontSize: 13),
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isDownloadView
+                          ? Icons.download_done_rounded
+                          : Icons.collections_bookmark_outlined,
+                      size: 64,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      isDownloadView ? 'Belum Ada Manga Didownload' : 'Your Library is Empty',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      isDownloadView
+                          ? 'Buka manga dan tap tombol download chapter untuk membaca offline tanpa kuota/internet.'
+                          : 'Browse sources and bookmark manga to read offline.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                  ],
+                ),
               ),
             );
           }
@@ -57,9 +140,9 @@ class LibraryScreen extends ConsumerWidget {
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
             ),
-            itemCount: favorites.length,
+            itemCount: items.length,
             itemBuilder: (context, index) {
-              final manga = favorites[index];
+              final manga = items[index];
               final parser = ParserRegistry.instance.getParser(manga.sourceId);
 
               return GestureDetector(
@@ -70,7 +153,7 @@ class LibraryScreen extends ConsumerWidget {
                       builder: (_) => MangaDetailScreen(manga: manga),
                     ),
                   ).then((_) {
-                    ref.read(libraryProvider.notifier).loadFavorites();
+                    ref.read(libraryProvider.notifier).loadManga();
                   });
                 },
                 child: Card(
@@ -119,7 +202,15 @@ class LibraryScreen extends ConsumerWidget {
                             color: Colors.black.withValues(alpha: 0.7),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.bookmark, size: 14, color: Colors.amber),
+                          child: Icon(
+                            activeFilter == LibraryFilter.downloaded
+                                ? Icons.download_done_rounded
+                                : Icons.bookmark,
+                            size: 14,
+                            color: activeFilter == LibraryFilter.downloaded
+                                ? const Color(0xFF00F0FF)
+                                : Colors.amber,
+                          ),
                         ),
                       ),
                     ],

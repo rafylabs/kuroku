@@ -4,6 +4,7 @@ import 'package:kuroku/core/database/models/manga.dart';
 import 'package:kuroku/core/database/models/chapter.dart';
 import 'package:kuroku/core/database/models/manga_page.dart';
 import 'package:kuroku/core/parser/parser_registry.dart';
+import 'package:kuroku/core/download/download_manager.dart';
 import 'package:kuroku/core/theme/app_theme.dart';
 
 void main() {
@@ -125,6 +126,14 @@ void main() {
       expect(a, isNotNull);
       final img = articles.first.querySelector('picture img');
       expect(img?.attributes['src'], contains('01J76XYEGYY86GDR09MN457Q7R'));
+    });
+
+    test('DownloadManager instance initializes and tracks state', () {
+      final dm = DownloadManager.instance;
+      expect(dm, isNotNull);
+      expect(dm.isDownloaded('non_existent_chapter'), isFalse);
+      expect(dm.getProgress('non_existent_chapter'), isNull);
+      expect(dm.activeDownloads.value, isEmpty);
     });
   });
 }
