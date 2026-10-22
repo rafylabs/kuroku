@@ -110,7 +110,8 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "tag=v1.0.0" >> $GITHUB_OUTPUT
+            VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+            echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
           fi
 
       - name: Publish / Update GitHub Release
@@ -120,6 +121,7 @@ jobs:
           name: "Kuroku ${{ steps.tag_info.outputs.tag }} — Cross-Platform Release"
           draft: false
           prerelease: false
+          make_latest: true
           files: |
             release-files/Kuroku.ipa
             release-files/Kuroku.apk
