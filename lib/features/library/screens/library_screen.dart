@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:extended_image/extended_image.dart';
 import '../../../core/parser/parser_registry.dart';
+import '../../../core/download/download_manager.dart';
 import '../providers/library_provider.dart';
 import '../../catalog/screens/manga_detail_screen.dart';
 
@@ -164,19 +166,32 @@ class LibraryScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Expanded(
-                            child: manga.coverUrl.isNotEmpty
-                                ? ExtendedImage.network(
+                            child: FutureBuilder<File?>(
+                              future: DownloadManager.instance.getLocalCoverFile(manga.id),
+                              builder: (context, snapshot) {
+                                final localFile = snapshot.data;
+                                if (localFile != null) {
+                                  return ExtendedImage.file(
+                                    localFile,
+                                    fit: BoxFit.cover,
+                                  );
+                                }
+                                if (manga.coverUrl.isNotEmpty) {
+                                  return ExtendedImage.network(
                                     manga.coverUrl,
                                     fit: BoxFit.cover,
                                     headers: parser?.headers,
                                     cache: true,
-                                  )
-                                : Container(
-                                    color: Colors.black26,
-                                    child: const Center(
-                                      child: Icon(Icons.broken_image_outlined, color: Colors.white38),
-                                    ),
+                                  );
+                                }
+                                return Container(
+                                  color: Colors.black26,
+                                  child: const Center(
+                                    child: Icon(Icons.broken_image_outlined, color: Colors.white38),
                                   ),
+                                );
+                              },
+                            ),
                           ),
                           Container(
                             padding: const EdgeInsets.all(8),

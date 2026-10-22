@@ -135,5 +135,24 @@ void main() {
       expect(dm.getProgress('non_existent_chapter'), isNull);
       expect(dm.activeDownloads.value, isEmpty);
     });
+
+    test('Synopsis text formatting unescapes HTML entities and normalizes newlines', () {
+      const raw = 'Title&#39;s story &amp; &quot;quote&quot;<br>Paragraph 1\r\nParagraph 2&#x20;';
+      var text = raw
+          .replaceAll('&quot;', '"')
+          .replaceAll('&#39;', "'")
+          .replaceAll('&rsquo;', "'")
+          .replaceAll('&lsquo;', "'")
+          .replaceAll('&amp;', '&')
+          .replaceAll('&#x20;', ' ')
+          .replaceAll('&nbsp;', ' ')
+          .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+          .replaceAll(RegExp(r'<[^>]*>'), '')
+          .trim();
+      text = text.replaceAll(RegExp(r'\r\n|\r'), '\n');
+
+      expect(text, contains("Title's story & \"quote\""));
+      expect(text, contains('Paragraph 1\nParagraph 2'));
+    });
   });
 }

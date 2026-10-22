@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:dio/dio.dart';
 import '../database/app_database.dart';
@@ -45,30 +46,76 @@ class DownloadManager {
     final docsDir = await getApplicationDocumentsDirectory();
     final safeMangaId = mangaId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
     final safeChapterId = chapterId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-    return '${docsDir.path}/downloads/$safeMangaId/$safeChapterId';
+    return p.join(docsDir.path, 'downloads', safeMangaId, safeChapterId);
+  }
+
+  Future<File?> getLocalCoverFile(String mangaId) async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final safeMangaId = mangaId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final file = File(p.join(docsDir.path, 'downloads', safeMangaId, 'cover.jpg'));
+    if (await file.exists() && await file.length() > 0) {
+      return file;
+    }
+    return null;
   }
 
   Future<List<MangaPage>?> getDownloadedPages(MangaChapter chapter) async {
-    final dirPath = await _getChapterDirPath(chapter.mangaId, chapter.id);
-    final dir = Directory(dirPath);
-    if (!await dir.exists()) {
-      return null;
+    String? targetDirPath;
+
+    // 1. Try finding by saved database dir_path first
+    try {
+      final db = await AppDatabase.instance.database;
+      final res = await db.query(
+        'downloads',
+        columns: ['dir_path'],
+        where: 'chapter_id = ?',
+        whereArgs: [chapter.id],
+        limit: 1,
+      );
+      if (res.isNotEmpty && res.first['dir_path'] != null) {
+        final path = res.first['dir_path'] as String;
+        if (await Directory(path).exists()) {
+          targetDirPath = path;
+        }
+      }
+    } catch (_) {}
+
+    // 2. Fall back to canonical documents directory path
+    if (targetDirPath == null) {
+      final computed = await _getChapterDirPath(chapter.mangaId, chapter.id);
+      if (await Directory(computed).exists()) {
+        targetDirPath = computed;
+      }
     }
 
+    if (targetDirPath == null) return null;
+
+    final dir = Directory(targetDirPath);
     final files = dir.listSync().whereType<File>().toList();
     if (files.isEmpty) return null;
 
+    // Filter image files only
     final imageFiles = files.where((f) {
-      final name = f.uri.pathSegments.last;
-      return RegExp(r'^\d+\.(jpg|jpeg|png|webp|avif)$', caseSensitive: false).hasMatch(name);
+      final name = p.basename(f.path).toLowerCase();
+      return name.endsWith('.jpg') ||
+          name.endsWith('.jpeg') ||
+          name.endsWith('.png') ||
+          name.endsWith('.webp') ||
+          name.endsWith('.avif');
     }).toList();
 
     if (imageFiles.isEmpty) return null;
 
+    // Natural numerical sorting: 0.jpg, 1.jpg, 2.jpg, 10.jpg
     imageFiles.sort((a, b) {
-      final aNum = int.tryParse(a.uri.pathSegments.last.split('.').first) ?? 0;
-      final bNum = int.tryParse(b.uri.pathSegments.last.split('.').first) ?? 0;
-      return aNum.compareTo(bNum);
+      final aName = p.basenameWithoutExtension(a.path);
+      final bName = p.basenameWithoutExtension(b.path);
+      final aNum = int.tryParse(RegExp(r'^\d+').firstMatch(aName)?.group(0) ?? '');
+      final bNum = int.tryParse(RegExp(r'^\d+').firstMatch(bName)?.group(0) ?? '');
+      if (aNum != null && bNum != null) {
+        return aNum.compareTo(bNum);
+      }
+      return aName.compareTo(bName);
     });
 
     return imageFiles.asMap().entries.map((entry) {
@@ -106,7 +153,20 @@ class DownloadManager {
         await dir.create(recursive: true);
       }
 
-      // Download each page image
+      // Cache manga cover locally for offline display in library
+      final mangaDir = dir.parent;
+      final coverFile = File(p.join(mangaDir.path, 'cover.jpg'));
+      if (!await coverFile.exists() && manga.coverUrl.isNotEmpty && manga.coverUrl.startsWith('http')) {
+        try {
+          await KurokuHttpClient.instance.dio.download(
+            manga.coverUrl,
+            coverFile.path,
+            options: Options(headers: parser.headers),
+          );
+        } catch (_) {}
+      }
+
+      // Download each page image sequentially
       for (int i = 0; i < pages.length; i++) {
         final page = pages[i];
         final ext = page.url.contains('.webp')
@@ -114,7 +174,7 @@ class DownloadManager {
             : page.url.contains('.png')
                 ? 'png'
                 : 'jpg';
-        final filePath = '$dirPath/$i.$ext';
+        final filePath = p.join(dirPath, '$i.$ext');
         final file = File(filePath);
 
         if (!await file.exists() || await file.length() == 0) {

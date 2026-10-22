@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:extended_image/extended_image.dart';
@@ -25,84 +26,121 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
   bool _isLoading = true;
   String? _error;
   bool _isFavorite = false;
+  bool _isSynopsisExpanded = false;
+  File? _localCoverFile;
 
   @override
   void initState() {
     super.initState();
     _currentManga = widget.manga;
-    _checkFavorite();
-    _loadMangaData();
+    _initScreenData();
   }
 
-  Future<void> _checkFavorite() async {
-    final existing = await AppDatabase.instance.getManga(widget.manga.id);
-    if (mounted && existing != null) {
+  Future<void> _initScreenData() async {
+    await _loadLocalCache();
+    await _checkLocalCover();
+    _fetchRemoteData();
+  }
+
+  Future<void> _checkLocalCover() async {
+    final file = await DownloadManager.instance.getLocalCoverFile(widget.manga.id);
+    if (mounted && file != null) {
       setState(() {
-        _isFavorite = existing.isFavorite;
-        _currentManga = existing;
+        _localCoverFile = file;
       });
     }
   }
 
-  Future<void> _loadMangaData() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  Future<void> _loadLocalCache() async {
+    final savedManga = await AppDatabase.instance.getManga(widget.manga.id);
+    final savedChapters = await AppDatabase.instance.getChapters(widget.manga.id);
 
+    if (mounted) {
+      setState(() {
+        if (savedManga != null) {
+          _isFavorite = savedManga.isFavorite;
+          _currentManga = savedManga;
+        }
+        if (savedChapters.isNotEmpty) {
+          _chapters = savedChapters;
+          _isLoading = false; // Show local data immediately
+        }
+      });
+    }
+  }
+
+  Future<void> _fetchRemoteData() async {
     try {
       final parser = ParserRegistry.instance.getParser(widget.manga.sourceId) ??
           ParserRegistry.instance.defaultParser;
 
       // 1. Fetch details
-      final detailedManga = await parser.getDetails(widget.manga);
-      
+      final detailedManga = await parser.getDetails(_currentManga);
+
       // 2. Fetch chapters
       final chapters = await parser.getChapters(detailedManga);
 
-      // Check DB read progress for each chapter
-      final savedChapters = await AppDatabase.instance.getChapters(widget.manga.id);
-      final readMap = {for (var c in savedChapters) c.id: c};
+      if (!mounted) return;
 
-      final mergedChapters = chapters.map((c) {
-        final saved = readMap[c.id];
-        if (saved != null) {
-          return c.copyWith(
-            isRead: saved.isRead,
-            lastReadPage: saved.lastReadPage,
-          );
-        }
-        return c;
-      }).toList();
+      if (chapters.isNotEmpty) {
+        // Check DB read progress for each chapter
+        final savedChapters = await AppDatabase.instance.getChapters(widget.manga.id);
+        final readMap = {for (var c in savedChapters) c.id: c};
 
-      if (mounted) {
+        final mergedChapters = chapters.map((c) {
+          final saved = readMap[c.id];
+          if (saved != null) {
+            return c.copyWith(
+              isRead: saved.isRead,
+              lastReadPage: saved.lastReadPage,
+            );
+          }
+          return c;
+        }).toList();
+
         setState(() {
-          _currentManga = detailedManga.copyWith(isFavorite: _isFavorite);
+          _currentManga = detailedManga.copyWith(
+            isFavorite: _isFavorite,
+            description: (detailedManga.description != null && detailedManga.description!.trim().isNotEmpty)
+                ? detailedManga.description
+                : _currentManga.description,
+          );
           _chapters = mergedChapters;
           _isLoading = false;
+          _error = null;
         });
 
         // Save metadata to SQLite
         await AppDatabase.instance.upsertManga(_currentManga);
         await AppDatabase.instance.upsertChapters(_chapters);
+      } else {
+        // Remote returned empty (e.g. offline / network down)
+        // Keep existing local chapters!
+        if (_chapters.isEmpty) {
+          final savedChapters = await AppDatabase.instance.getChapters(widget.manga.id);
+          if (savedChapters.isNotEmpty) {
+            setState(() {
+              _chapters = savedChapters;
+            });
+          }
+        }
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e) {
-      // Offline fallback: load cached manga details and chapters from SQLite
-      final savedManga = await AppDatabase.instance.getManga(widget.manga.id);
-      final savedChapters = await AppDatabase.instance.getChapters(widget.manga.id);
-      if (savedChapters.isNotEmpty && mounted) {
-        setState(() {
-          _currentManga = (savedManga ?? widget.manga).copyWith(isFavorite: _isFavorite);
-          _chapters = savedChapters;
-          _isLoading = false;
-          _error = null;
-        });
-        return;
-      }
+      // Remote failed (offline)
       if (mounted) {
+        if (_chapters.isEmpty) {
+          final savedChapters = await AppDatabase.instance.getChapters(widget.manga.id);
+          if (savedChapters.isNotEmpty) {
+            setState(() {
+              _chapters = savedChapters;
+            });
+          }
+        }
         setState(() {
           _isLoading = false;
-          _error = e.toString();
         });
       }
     }
@@ -227,6 +265,134 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
     }
   }
 
+  Widget _buildCoverImage({required double width, required double height, Map<String, String>? headers}) {
+    if (_localCoverFile != null) {
+      return ExtendedImage.file(
+        _localCoverFile!,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+      );
+    }
+    if (_currentManga.coverUrl.isNotEmpty) {
+      return ExtendedImage.network(
+        _currentManga.coverUrl,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        headers: headers,
+        cache: true,
+      );
+    }
+    return Container(
+      width: width,
+      height: height,
+      color: Colors.black38,
+      child: const Center(
+        child: Icon(Icons.broken_image_outlined, color: Colors.white38),
+      ),
+    );
+  }
+
+  Widget _buildBannerBackground(Map<String, String>? headers) {
+    if (_localCoverFile != null) {
+      return ExtendedImage.file(
+        _localCoverFile!,
+        fit: BoxFit.cover,
+      );
+    }
+    if (_currentManga.coverUrl.isNotEmpty) {
+      return ExtendedImage.network(
+        _currentManga.coverUrl,
+        fit: BoxFit.cover,
+        headers: headers,
+        cache: true,
+      );
+    }
+    return Container(color: Colors.black38);
+  }
+
+  String _formatSynopsis(String raw) {
+    var text = raw
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll('&rsquo;', "'")
+        .replaceAll('&lsquo;', "'")
+        .replaceAll('&amp;', '&')
+        .replaceAll('&#x20;', ' ')
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .trim();
+
+    text = text.replaceAll(RegExp(r'\r\n|\r'), '\n');
+    return text;
+  }
+
+  Widget _buildSynopsisSection() {
+    final rawDesc = _currentManga.description;
+    if (rawDesc == null || rawDesc.trim().isEmpty) return const SizedBox.shrink();
+
+    final formatted = _formatSynopsis(rawDesc);
+    final isLong = formatted.length > 150 || formatted.contains('\n');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Synopsis',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          formatted,
+          maxLines: _isSynopsisExpanded ? null : 4,
+          overflow: _isSynopsisExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 13,
+            height: 1.5,
+            color: Colors.white70,
+            letterSpacing: 0.2,
+          ),
+        ),
+        if (isLong) ...[
+          const SizedBox(height: 4),
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isSynopsisExpanded = !_isSynopsisExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _isSynopsisExpanded ? 'Lebih Sedikit' : 'Selengkapnya',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    _isSynopsisExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
   void _openReader(MangaChapter chapter, [int initialPage = 0]) {
     Navigator.push(
       context,
@@ -241,7 +407,7 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
       ),
     ).then((_) {
       // Refresh read status after closing reader
-      _loadMangaData();
+      _initScreenData();
     });
   }
 
@@ -259,14 +425,7 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _currentManga.coverUrl.isNotEmpty
-                      ? ExtendedImage.network(
-                          _currentManga.coverUrl,
-                          fit: BoxFit.cover,
-                          headers: parser?.headers,
-                          cache: true,
-                        )
-                      : Container(color: Colors.black38),
+                  _buildBannerBackground(parser?.headers),
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -290,22 +449,11 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: _currentManga.coverUrl.isNotEmpty
-                              ? ExtendedImage.network(
-                                  _currentManga.coverUrl,
-                                  width: 100,
-                                  height: 140,
-                                  fit: BoxFit.cover,
-                                  headers: parser?.headers,
-                                )
-                              : Container(
-                                  width: 100,
-                                  height: 140,
-                                  color: Colors.black38,
-                                  child: const Center(
-                                    child: Icon(Icons.broken_image_outlined, color: Colors.white38),
-                                  ),
-                                ),
+                          child: _buildCoverImage(
+                            width: 100,
+                            height: 140,
+                            headers: parser?.headers,
+                          ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -408,18 +556,7 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
                   const SizedBox(height: 20),
 
                   // Synopsis
-                  if (_currentManga.description != null && _currentManga.description!.isNotEmpty) ...[
-                    const Text(
-                      'Synopsis',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _currentManga.description!,
-                      style: const TextStyle(fontSize: 13, height: 1.4, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
+                  _buildSynopsisSection(),
 
                   // Genres
                   if (_currentManga.genres.isNotEmpty) ...[

@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:extended_image/extended_image.dart';
 import '../../../core/parser/parser_registry.dart';
+import '../../../core/download/download_manager.dart';
 import '../providers/history_provider.dart';
 import '../../reader/providers/reader_provider.dart';
 import '../../reader/screens/manga_reader_screen.dart';
@@ -60,23 +62,38 @@ class HistoryScreen extends ConsumerWidget {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 leading: ClipRRect(
                   borderRadius: BorderRadius.circular(6),
-                  child: entry.manga.coverUrl.isNotEmpty
-                      ? ExtendedImage.network(
+                  child: FutureBuilder<File?>(
+                    future: DownloadManager.instance.getLocalCoverFile(entry.manga.id),
+                    builder: (context, snapshot) {
+                      final localFile = snapshot.data;
+                      if (localFile != null) {
+                        return ExtendedImage.file(
+                          localFile,
+                          width: 48,
+                          height: 64,
+                          fit: BoxFit.cover,
+                        );
+                      }
+                      if (entry.manga.coverUrl.isNotEmpty) {
+                        return ExtendedImage.network(
                           entry.manga.coverUrl,
                           width: 48,
                           height: 64,
                           fit: BoxFit.cover,
                           headers: parser?.headers,
                           cache: true,
-                        )
-                      : Container(
-                          width: 48,
-                          height: 64,
-                          color: Colors.black26,
-                          child: const Center(
-                            child: Icon(Icons.broken_image_outlined, color: Colors.white38, size: 20),
-                          ),
+                        );
+                      }
+                      return Container(
+                        width: 48,
+                        height: 64,
+                        color: Colors.black26,
+                        child: const Center(
+                          child: Icon(Icons.broken_image_outlined, color: Colors.white38, size: 20),
                         ),
+                      );
+                    },
+                  ),
                 ),
                 title: Text(
                   entry.manga.title,
