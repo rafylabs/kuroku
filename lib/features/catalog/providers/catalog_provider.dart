@@ -1,0 +1,110 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import '../../../core/database/models/manga.dart';
+import '../../../core/parser/manga_parser.dart';
+import '../../../core/parser/parser_registry.dart';
+
+final activeParserProvider = StateProvider<MangaParser>((ref) {
+  return ParserRegistry.instance.defaultParser;
+});
+
+final searchQueryProvider = StateProvider<String>((ref) => '');
+
+class CatalogState {
+  final List<Manga> items;
+  final int page;
+  final bool isLoading;
+  final bool hasMore;
+  final String? error;
+
+  const CatalogState({
+    this.items = const [],
+    this.page = 1,
+    this.isLoading = false,
+    this.hasMore = true,
+    this.error,
+  });
+
+  CatalogState copyWith({
+    List<Manga>? items,
+    int? page,
+    bool? isLoading,
+    bool? hasMore,
+    String? error,
+  }) {
+    return CatalogState(
+      items: items ?? this.items,
+      page: page ?? this.page,
+      isLoading: isLoading ?? this.isLoading,
+      hasMore: hasMore ?? this.hasMore,
+      error: error,
+    );
+  }
+}
+
+class CatalogNotifier extends StateNotifier<CatalogState> {
+  final Ref ref;
+
+  CatalogNotifier(this.ref) : super(const CatalogState()) {
+    loadFirstPage();
+  }
+
+  Future<void> loadFirstPage() async {
+    state = state.copyWith(isLoading: true, error: null, page: 1);
+    final parser = ref.read(activeParserProvider);
+    final query = ref.read(searchQueryProvider);
+
+    try {
+      final items = await parser.getList(
+        page: 1,
+        order: SortOrder.updated,
+        query: query.isNotEmpty ? query : null,
+      );
+
+      state = state.copyWith(
+        items: items,
+        isLoading: false,
+        page: 1,
+        hasMore: items.isNotEmpty,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
+  }
+
+  Future<void> loadNextPage() async {
+    if (state.isLoading || !state.hasMore) return;
+
+    state = state.copyWith(isLoading: true);
+    final parser = ref.read(activeParserProvider);
+    final query = ref.read(searchQueryProvider);
+    final nextPage = state.page + 1;
+
+    try {
+      final nextItems = await parser.getList(
+        page: nextPage,
+        order: SortOrder.updated,
+        query: query.isNotEmpty ? query : null,
+      );
+
+      state = state.copyWith(
+        items: [...state.items, ...nextItems],
+        isLoading: false,
+        page: nextPage,
+        hasMore: nextItems.isNotEmpty,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+}
+
+final catalogProvider = StateNotifierProvider<CatalogNotifier, CatalogState>((ref) {
+  // Reload when parser or search query changes
+  ref.watch(activeParserProvider);
+  ref.watch(searchQueryProvider);
+  return CatalogNotifier(ref);
+});
