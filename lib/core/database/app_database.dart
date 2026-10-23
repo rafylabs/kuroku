@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 import 'models/manga.dart';
 import 'models/chapter.dart';
 import 'models/history_entry.dart';
+import 'models/chapter_update.dart';
 import '../parser/dynamic_manga_parser.dart';
 
 class AppDatabase {
@@ -46,6 +47,22 @@ class AppDatabase {
           )
         ''');
         await db.execute('CREATE INDEX IF NOT EXISTS idx_downloads_manga ON downloads(manga_id);');
+
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS chapter_updates (
+            id TEXT PRIMARY KEY,
+            manga_id TEXT NOT NULL,
+            manga_title TEXT NOT NULL,
+            cover_url TEXT NOT NULL,
+            source_id TEXT NOT NULL,
+            chapter_id TEXT NOT NULL,
+            chapter_title TEXT NOT NULL,
+            chapter_number REAL NOT NULL,
+            detected_at TEXT NOT NULL,
+            is_seen INTEGER NOT NULL DEFAULT 0
+          )
+        ''');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_updates_detected ON chapter_updates(detected_at DESC);');
       },
       onCreate: (db, version) async {
         await db.execute('''
@@ -106,10 +123,27 @@ class AppDatabase {
           )
         ''');
 
+        await db.execute('''
+          CREATE TABLE chapter_updates (
+            id TEXT PRIMARY KEY,
+            manga_id TEXT NOT NULL,
+            manga_title TEXT NOT NULL,
+            cover_url TEXT NOT NULL,
+            source_id TEXT NOT NULL,
+            chapter_id TEXT NOT NULL,
+            chapter_title TEXT NOT NULL,
+            chapter_number REAL NOT NULL,
+            detected_at TEXT NOT NULL,
+            is_seen INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY(manga_id) REFERENCES manga(id) ON DELETE CASCADE
+          )
+        ''');
+
         await db.execute('CREATE INDEX idx_manga_fav ON manga(is_favorite);');
         await db.execute('CREATE INDEX idx_chapters_manga ON chapters(manga_id);');
         await db.execute('CREATE INDEX idx_history_updated ON history(updated_at DESC);');
         await db.execute('CREATE INDEX idx_downloads_manga ON downloads(manga_id);');
+        await db.execute('CREATE INDEX idx_updates_detected ON chapter_updates(detected_at DESC);');
       },
     );
   }
@@ -382,5 +416,46 @@ class AppDatabase {
       ORDER BY m.title ASC
     ''');
     return results.map((r) => Manga.fromMap(r)).toList();
+  }
+
+  // --- Chapter Updates Operations ---
+  Future<void> saveChapterUpdates(List<ChapterUpdate> updates) async {
+    if (updates.isEmpty) return;
+    final db = await database;
+    final batch = db.batch();
+    for (final u in updates) {
+      batch.insert(
+        'chapter_updates',
+        u.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<List<ChapterUpdate>> getRecentUpdates({int limit = 50}) async {
+    final db = await database;
+    final results = await db.query(
+      'chapter_updates',
+      orderBy: 'detected_at DESC',
+      limit: limit,
+    );
+    return results.map((r) => ChapterUpdate.fromMap(r)).toList();
+  }
+
+  Future<int> getUnseenUpdateCount() async {
+    final db = await database;
+    final res = await db.rawQuery('SELECT COUNT(*) as count FROM chapter_updates WHERE is_seen = 0');
+    return Sqflite.firstIntValue(res) ?? 0;
+  }
+
+  Future<void> markAllUpdatesSeen() async {
+    final db = await database;
+    await db.update('chapter_updates', {'is_seen': 1});
+  }
+
+  Future<void> clearUpdates() async {
+    final db = await database;
+    await db.delete('chapter_updates');
   }
 }

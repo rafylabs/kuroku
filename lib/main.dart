@@ -8,13 +8,18 @@ import 'features/history/screens/history_screen.dart';
 import 'features/settings/screens/settings_screen.dart';
 import 'core/parser/parser_registry.dart';
 import 'core/download/download_manager.dart';
+import 'core/notifications/notification_service.dart';
+import 'core/services/library_update_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load user custom sources and downloaded cache from local database
+  // Load user custom sources, offline cache, and notification services
   await ParserRegistry.instance.loadCustomSources();
   await DownloadManager.instance.init();
+  await NotificationService.instance.init();
+  await NotificationService.instance.requestPermissions();
+  await LibraryUpdateService.instance.init();
 
   // Dark edge-to-edge system UI overlay
   SystemChrome.setSystemUIOverlayStyle(

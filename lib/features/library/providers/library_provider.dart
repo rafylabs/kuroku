@@ -2,10 +2,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/models/manga.dart';
+import '../../../core/database/models/chapter_update.dart';
+import '../../../core/services/library_update_service.dart';
 
-enum LibraryFilter { favorites, downloaded }
+enum LibraryFilter { favorites, downloaded, updates }
 
 final libraryFilterProvider = StateProvider<LibraryFilter>((ref) => LibraryFilter.favorites);
+
+final updatesListProvider = FutureProvider<List<ChapterUpdate>>((ref) async {
+  return await AppDatabase.instance.getRecentUpdates();
+});
 
 class LibraryNotifier extends StateNotifier<AsyncValue<List<Manga>>> {
   final Ref ref;
@@ -31,6 +37,13 @@ class LibraryNotifier extends StateNotifier<AsyncValue<List<Manga>>> {
     final newStatus = await AppDatabase.instance.toggleFavorite(manga);
     await loadManga();
     return newStatus;
+  }
+
+  Future<int> checkUpdates({bool silent = false}) async {
+    final count = await LibraryUpdateService.instance.checkForUpdates(silent: silent);
+    await loadManga();
+    ref.invalidate(updatesListProvider);
+    return count;
   }
 }
 

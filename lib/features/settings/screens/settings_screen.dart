@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:extended_image/extended_image.dart';
+import '../../../core/notifications/notification_service.dart';
+import '../../../core/services/library_update_service.dart';
 import '../../reader/providers/reader_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -157,6 +159,50 @@ class SettingsScreen extends ConsumerWidget {
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
+              'NOTIFICATIONS & UPDATES',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
+                color: Color(0xFF00F0FF),
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.notifications_active_outlined),
+            title: const Text('Check Chapter Updates'),
+            subtitle: const Text('Scan favorited manga for newly released chapters'),
+            trailing: const Icon(Icons.sync_rounded),
+            onTap: () async {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Checking for new chapters...')),
+              );
+              final count = await LibraryUpdateService.instance.checkForUpdates(silent: false);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(count > 0 ? 'Found $count new chapters!' : 'No new chapters found')),
+                );
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.notification_add_outlined),
+            title: const Text('Notification Permissions'),
+            subtitle: const Text('Ensure system notifications are enabled'),
+            onTap: () async {
+              await NotificationService.instance.requestPermissions();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Notification permission requested')),
+                );
+              }
+            },
+          ),
+          const Divider(),
+
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
               'STORAGE & CACHE',
               style: TextStyle(
                 fontSize: 11,
@@ -194,7 +240,7 @@ class SettingsScreen extends ConsumerWidget {
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Kuroku Cross-Platform'),
-            subtitle: Text('Version 1.2.2 (Reverse Engineered Flutter Edition)'),
+            subtitle: Text('Version 1.3.0 (Reverse Engineered Flutter Edition)'),
           ),
         ],
       ),

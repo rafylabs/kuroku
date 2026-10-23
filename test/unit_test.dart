@@ -3,8 +3,10 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:kuroku/core/database/models/manga.dart';
 import 'package:kuroku/core/database/models/chapter.dart';
 import 'package:kuroku/core/database/models/manga_page.dart';
+import 'package:kuroku/core/database/models/chapter_update.dart';
 import 'package:kuroku/core/parser/parser_registry.dart';
 import 'package:kuroku/core/download/download_manager.dart';
+import 'package:kuroku/core/services/library_update_service.dart';
 import 'package:kuroku/core/theme/app_theme.dart';
 
 void main() {
@@ -153,6 +155,39 @@ void main() {
 
       expect(text, contains("Title's story & \"quote\""));
       expect(text, contains('Paragraph 1\nParagraph 2'));
+    });
+
+    test('ChapterUpdate serialization round-trip', () {
+      final now = DateTime.now();
+      final update = ChapterUpdate(
+        id: 'upd_1',
+        mangaId: 'shinigami_123',
+        mangaTitle: 'Overgeared',
+        coverUrl: 'https://example.com/cover.jpg',
+        sourceId: 'shinigami',
+        chapterId: 'ch_200',
+        chapterTitle: 'Chapter 200',
+        chapterNumber: 200.0,
+        detectedAt: now,
+        isSeen: false,
+      );
+
+      final map = update.toMap();
+      final decoded = ChapterUpdate.fromMap(map);
+
+      expect(decoded.id, 'upd_1');
+      expect(decoded.mangaId, 'shinigami_123');
+      expect(decoded.mangaTitle, 'Overgeared');
+      expect(decoded.chapterTitle, 'Chapter 200');
+      expect(decoded.chapterNumber, 200.0);
+      expect(decoded.isSeen, isFalse);
+    });
+
+    test('LibraryUpdateService initializes with valid state', () {
+      final service = LibraryUpdateService.instance;
+      expect(service, isNotNull);
+      expect(service.isCheckingUpdates.value, isFalse);
+      expect(service.unseenUpdateCount.value, 0);
     });
   });
 }
