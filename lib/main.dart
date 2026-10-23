@@ -10,6 +10,7 @@ import 'core/parser/parser_registry.dart';
 import 'core/download/download_manager.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/services/library_update_service.dart';
+import 'core/services/app_update_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -61,6 +62,21 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkForAppUpdates();
+  }
+
+  Future<void> _checkForAppUpdates() async {
+    await Future.delayed(const Duration(seconds: 3));
+    if (!mounted) return;
+    final update = await AppUpdateService.instance.checkUpdate();
+    if (update != null && mounted) {
+      AppUpdateService.instance.showUpdateDialog(context, update);
+    }
+  }
 
   final List<Widget> _screens = const [
     CatalogScreen(),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:extended_image/extended_image.dart';
 import '../../../core/notifications/notification_service.dart';
 import '../../../core/services/library_update_service.dart';
+import '../../../core/services/app_update_service.dart';
 import '../../reader/providers/reader_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -228,7 +229,7 @@ class SettingsScreen extends ConsumerWidget {
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
-              'ABOUT',
+              'ABOUT & UPDATES',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
@@ -237,10 +238,38 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
           ),
+          ListTile(
+            leading: const Icon(Icons.system_update_rounded, color: Color(0xFF00F0FF)),
+            title: const Text('Periksa Update Aplikasi'),
+            subtitle: const Text('Unduh dan install versi terbaru langsung dari aplikasi'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () async {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Memeriksa versi terbaru Kuroku di GitHub...'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+
+              final update = await AppUpdateService.instance.checkUpdate();
+              if (!context.mounted) return;
+
+              if (update != null) {
+                AppUpdateService.instance.showUpdateDialog(context, update);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Kuroku sudah menggunakan versi terbaru (v${AppUpdateService.currentVersion})'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+          ),
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Kuroku Cross-Platform'),
-            subtitle: Text('Version 1.3.0 (Reverse Engineered Flutter Edition)'),
+            subtitle: Text('Version ${AppUpdateService.currentVersion} (Reverse Engineered Flutter Edition)'),
           ),
         ],
       ),

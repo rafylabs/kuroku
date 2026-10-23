@@ -7,6 +7,7 @@ import 'package:kuroku/core/database/models/chapter_update.dart';
 import 'package:kuroku/core/parser/parser_registry.dart';
 import 'package:kuroku/core/download/download_manager.dart';
 import 'package:kuroku/core/services/library_update_service.dart';
+import 'package:kuroku/core/services/app_update_service.dart';
 import 'package:kuroku/core/theme/app_theme.dart';
 
 void main() {
@@ -188,6 +189,15 @@ void main() {
       expect(service, isNotNull);
       expect(service.isCheckingUpdates.value, isFalse);
       expect(service.unseenUpdateCount.value, 0);
+    });
+
+    test('AppUpdateService semver comparison detects newer versions', () {
+      final updater = AppUpdateService.instance;
+      expect(updater.isVersionNewer('1.3.1', '1.3.0'), isTrue);
+      expect(updater.isVersionNewer('v1.4.0', 'v1.3.1'), isTrue);
+      expect(updater.isVersionNewer('2.0.0', '1.9.9'), isTrue);
+      expect(updater.isVersionNewer('1.3.0', '1.3.1'), isFalse);
+      expect(updater.isVersionNewer('1.3.1', '1.3.1'), isFalse);
     });
   });
 }
