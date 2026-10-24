@@ -263,6 +263,32 @@ class AppDatabase {
     );
   }
 
+  Future<Map<String, double>> getReadingProgressForManga(List<String> mangaIds) async {
+    if (mangaIds.isEmpty) return {};
+    final db = await database;
+    final placeholders = List.filled(mangaIds.length, '?').join(',');
+    final rows = await db.rawQuery('''
+      SELECT 
+        manga_id,
+        COUNT(*) as total_chapters,
+        SUM(CASE WHEN is_read = 1 THEN 1 ELSE 0 END) as read_chapters
+      FROM chapters
+      WHERE manga_id IN ($placeholders)
+      GROUP BY manga_id
+    ''', mangaIds);
+
+    final Map<String, double> progress = {};
+    for (final row in rows) {
+      final mangaId = row['manga_id'] as String;
+      final total = (row['total_chapters'] as int? ?? 0);
+      final read = (row['read_chapters'] as int? ?? 0);
+      if (total > 0) {
+        progress[mangaId] = (read / total).clamp(0.0, 1.0);
+      }
+    }
+    return progress;
+  }
+
   // --- History Operations ---
   Future<void> recordHistory({
     required Manga manga,

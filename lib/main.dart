@@ -92,35 +92,50 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+      bottomNavigationBar: ValueListenableBuilder<int>(
+        valueListenable: LibraryUpdateService.instance.unseenUpdateCount,
+        builder: (context, unseenCount, _) {
+          return BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            items: [
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.explore_outlined),
+                activeIcon: Icon(Icons.explore),
+                label: 'Browse',
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.collections_bookmark_outlined),
+                activeIcon: Icon(Icons.collections_bookmark),
+                label: 'Library',
+              ),
+              BottomNavigationBarItem(
+                icon: Badge(
+                  isLabelVisible: unseenCount > 0,
+                  label: Text('$unseenCount', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                  backgroundColor: const Color(0xFFFF4081),
+                  child: const Icon(Icons.history_outlined),
+                ),
+                activeIcon: Badge(
+                  isLabelVisible: unseenCount > 0,
+                  label: Text('$unseenCount', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                  backgroundColor: const Color(0xFFFF4081),
+                  child: const Icon(Icons.history),
+                ),
+                label: 'History',
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.settings_outlined),
+                activeIcon: Icon(Icons.settings),
+                label: 'Settings',
+              ),
+            ],
+          );
         },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.explore_outlined),
-            activeIcon: Icon(Icons.explore),
-            label: 'Browse',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.collections_bookmark_outlined),
-            activeIcon: Icon(Icons.collections_bookmark),
-            label: 'Library',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history_outlined),
-            activeIcon: Icon(Icons.history),
-            label: 'History',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
       ),
     );
   }

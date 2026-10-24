@@ -229,5 +229,23 @@ void main() {
       expect(updateItem.chapterNumber, 2.0);
       expect(updateItem.isSeen, isFalse);
     });
+
+    test('UpdateCardItem holds metadata and reading progress correctly', () {
+      const card = UpdateCardItem(
+        mangaId: 'm1',
+        mangaTitle: 'The Beginning After The End',
+        coverUrl: 'https://example.com/cover.jpg',
+        sourceId: 'shinigami',
+        updateCount: 3,
+        readingProgress: 0.98,
+        isFavorite: true,
+      );
+
+      expect(card.mangaId, 'm1');
+      expect(card.updateCount, 3);
+      expect(card.readingProgress, 0.98);
+      expect((card.readingProgress * 100).round(), 98);
+      expect(card.isFavorite, isTrue);
+    });
   });
 }
