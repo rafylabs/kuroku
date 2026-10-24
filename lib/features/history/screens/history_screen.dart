@@ -194,6 +194,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               manga: item.readEntry!.manga,
               chapter: item.readEntry!.chapter,
               initialPage: item.readEntry!.page,
+              initialOffset: item.readEntry!.scrollOffset,
             ),
           ),
         ),

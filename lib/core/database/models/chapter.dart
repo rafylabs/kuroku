@@ -8,6 +8,7 @@ class MangaChapter {
   final DateTime? uploadDate;
   final bool isRead;
   final int lastReadPage;
+  final double lastReadOffset;
   final int pageCount;
 
   const MangaChapter({
@@ -20,6 +21,7 @@ class MangaChapter {
     this.uploadDate,
     this.isRead = false,
     this.lastReadPage = 0,
+    this.lastReadOffset = 0.0,
     this.pageCount = 0,
   });
 
@@ -34,6 +36,7 @@ class MangaChapter {
       'upload_date': uploadDate?.toIso8601String(),
       'is_read': isRead ? 1 : 0,
       'last_read_page': lastReadPage,
+      'last_read_offset': lastReadOffset,
       'page_count': pageCount,
     };
   }
@@ -49,6 +52,7 @@ class MangaChapter {
       uploadDate: map['upload_date'] != null ? DateTime.tryParse(map['upload_date'] as String) : null,
       isRead: (map['is_read'] as int? ?? 0) == 1,
       lastReadPage: map['last_read_page'] as int? ?? 0,
+      lastReadOffset: (map['last_read_offset'] as num?)?.toDouble() ?? 0.0,
       pageCount: map['page_count'] as int? ?? 0,
     );
   }
@@ -63,6 +67,7 @@ class MangaChapter {
     DateTime? uploadDate,
     bool? isRead,
     int? lastReadPage,
+    double? lastReadOffset,
     int? pageCount,
   }) {
     return MangaChapter(
@@ -75,6 +80,7 @@ class MangaChapter {
       uploadDate: uploadDate ?? this.uploadDate,
       isRead: isRead ?? this.isRead,
       lastReadPage: lastReadPage ?? this.lastReadPage,
+      lastReadOffset: lastReadOffset ?? this.lastReadOffset,
       pageCount: pageCount ?? this.pageCount,
     );
   }

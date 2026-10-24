@@ -63,6 +63,14 @@ class AppDatabase {
           )
         ''');
         await db.execute('CREATE INDEX IF NOT EXISTS idx_updates_detected ON chapter_updates(detected_at DESC);');
+
+        // Seamless schema migrations for scroll offset & read tracking
+        try {
+          await db.execute('ALTER TABLE history ADD COLUMN scroll_offset REAL DEFAULT 0.0;');
+        } catch (_) {}
+        try {
+          await db.execute('ALTER TABLE chapters ADD COLUMN last_read_offset REAL DEFAULT 0.0;');
+        } catch (_) {}
       },
       onCreate: (db, version) async {
         await db.execute('''
@@ -95,6 +103,7 @@ class AppDatabase {
             upload_date TEXT,
             is_read INTEGER NOT NULL DEFAULT 0,
             last_read_page INTEGER NOT NULL DEFAULT 0,
+            last_read_offset REAL NOT NULL DEFAULT 0.0,
             page_count INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY(manga_id) REFERENCES manga(id) ON DELETE CASCADE
           )
@@ -105,6 +114,7 @@ class AppDatabase {
             manga_id TEXT NOT NULL,
             chapter_id TEXT NOT NULL,
             page INTEGER NOT NULL DEFAULT 0,
+            scroll_offset REAL NOT NULL DEFAULT 0.0,
             updated_at TEXT NOT NULL,
             PRIMARY KEY(manga_id),
             FOREIGN KEY(manga_id) REFERENCES manga(id) ON DELETE CASCADE,
@@ -200,11 +210,33 @@ class AppDatabase {
     final db = await database;
     final batch = db.batch();
     for (final ch in chapters) {
-      batch.insert(
-        'chapters',
-        ch.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      batch.rawInsert('''
+        INSERT INTO chapters (
+          id, manga_id, title, number, url, scanlator, upload_date, is_read, last_read_page, last_read_offset, page_count
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          title = excluded.title,
+          number = excluded.number,
+          url = excluded.url,
+          scanlator = COALESCE(excluded.scanlator, chapters.scanlator),
+          upload_date = COALESCE(excluded.upload_date, chapters.upload_date),
+          is_read = CASE WHEN chapters.is_read = 1 OR excluded.is_read = 1 THEN 1 ELSE 0 END,
+          last_read_page = CASE WHEN excluded.last_read_page > 0 THEN excluded.last_read_page ELSE chapters.last_read_page END,
+          last_read_offset = CASE WHEN excluded.last_read_page > 0 THEN excluded.last_read_offset ELSE chapters.last_read_offset END,
+          page_count = CASE WHEN excluded.page_count > 0 THEN excluded.page_count ELSE chapters.page_count END
+      ''', [
+        ch.id,
+        ch.mangaId,
+        ch.title,
+        ch.number,
+        ch.url,
+        ch.scanlator,
+        ch.uploadDate?.toIso8601String(),
+        ch.isRead ? 1 : 0,
+        ch.lastReadPage,
+        ch.lastReadOffset,
+        ch.pageCount,
+      ]);
     }
     await batch.commit(noResult: true);
   }
@@ -250,17 +282,52 @@ class AppDatabase {
     return chapters;
   }
 
-  Future<void> updateChapterProgress(String chapterId, int page, bool isRead) async {
+  Future<void> updateChapterProgress(
+    String chapterId,
+    int page,
+    bool isRead, {
+    double scrollOffset = 0.0,
+  }) async {
+    final db = await database;
+    await db.rawUpdate('''
+      UPDATE chapters
+      SET 
+        last_read_page = ?,
+        last_read_offset = ?,
+        is_read = CASE WHEN ? = 1 OR is_read = 1 THEN 1 ELSE 0 END
+      WHERE id = ?
+    ''', [page, scrollOffset, isRead ? 1 : 0, chapterId]);
+  }
+
+  Future<void> markChapterRead(String chapterId, bool isRead) async {
     final db = await database;
     await db.update(
       'chapters',
-      {
-        'last_read_page': page,
-        'is_read': isRead ? 1 : 0,
-      },
+      {'is_read': isRead ? 1 : 0},
       where: 'id = ?',
       whereArgs: [chapterId],
     );
+  }
+
+  Future<void> markPreviousChaptersRead(String mangaId, double chapterNumber) async {
+    final db = await database;
+    final cleanId = mangaId.contains('_') ? mangaId.substring(mangaId.indexOf('_') + 1) : mangaId;
+    await db.rawUpdate('''
+      UPDATE chapters
+      SET is_read = 1
+      WHERE (manga_id = ? OR manga_id = ? OR manga_id LIKE ?)
+        AND number <= ?
+    ''', [mangaId, cleanId, '%$cleanId%', chapterNumber]);
+  }
+
+  Future<void> markAllChaptersRead(String mangaId, bool isRead) async {
+    final db = await database;
+    final cleanId = mangaId.contains('_') ? mangaId.substring(mangaId.indexOf('_') + 1) : mangaId;
+    await db.rawUpdate('''
+      UPDATE chapters
+      SET is_read = ?
+      WHERE manga_id = ? OR manga_id = ? OR manga_id LIKE ?
+    ''', [isRead ? 1 : 0, mangaId, cleanId, '%$cleanId%']);
   }
 
   Future<Map<String, double>> getReadingProgressForManga(List<String> mangaIds) async {
@@ -283,7 +350,11 @@ class AppDatabase {
       final total = (row['total_chapters'] as int? ?? 0);
       final read = (row['read_chapters'] as int? ?? 0);
       if (total > 0) {
-        progress[mangaId] = (read / total).clamp(0.0, 1.0);
+        final val = (read / total).clamp(0.0, 1.0);
+        progress[mangaId] = val;
+        if (mangaId.contains('_')) {
+          progress[mangaId.substring(mangaId.indexOf('_') + 1)] = val;
+        }
       }
     }
     return progress;
@@ -294,6 +365,7 @@ class AppDatabase {
     required Manga manga,
     required MangaChapter chapter,
     required int page,
+    double scrollOffset = 0.0,
   }) async {
     final db = await database;
     await upsertManga(manga);
@@ -305,6 +377,7 @@ class AppDatabase {
         'manga_id': manga.id,
         'chapter_id': chapter.id,
         'page': page,
+        'scroll_offset': scrollOffset,
         'updated_at': DateTime.now().toIso8601String(),
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
@@ -316,6 +389,7 @@ class AppDatabase {
     final results = await db.rawQuery('''
       SELECT 
         h.page as hist_page,
+        h.scroll_offset as hist_scroll_offset,
         h.updated_at as hist_updated,
         m.*,
         c.title as ch_title,
@@ -325,6 +399,7 @@ class AppDatabase {
         c.upload_date as ch_upload_date,
         c.is_read as ch_is_read,
         c.last_read_page as ch_last_read_page,
+        c.last_read_offset as ch_last_read_offset,
         c.page_count as ch_page_count,
         c.id as ch_id
       FROM history h
@@ -345,6 +420,7 @@ class AppDatabase {
         uploadDate: row['ch_upload_date'] != null ? DateTime.tryParse(row['ch_upload_date'] as String) : null,
         isRead: (row['ch_is_read'] as int? ?? 0) == 1,
         lastReadPage: row['ch_last_read_page'] as int? ?? 0,
+        lastReadOffset: (row['ch_last_read_offset'] as num?)?.toDouble() ?? 0.0,
         pageCount: row['ch_page_count'] as int? ?? 0,
       );
 
@@ -352,6 +428,7 @@ class AppDatabase {
         manga: manga,
         chapter: chapter,
         page: row['hist_page'] as int? ?? 0,
+        scrollOffset: (row['hist_scroll_offset'] as num?)?.toDouble() ?? 0.0,
         updatedAt: DateTime.tryParse(row['hist_updated'] as String) ?? DateTime.now(),
       );
     }).toList();

@@ -375,6 +375,7 @@ class LibraryScreen extends ConsumerWidget {
     AsyncValue<List<Manga>> libraryAsync,
     LibraryFilter activeFilter,
   ) {
+    final progressMap = ref.watch(libraryProgressProvider).value ?? const {};
     return libraryAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(
@@ -427,6 +428,8 @@ class LibraryScreen extends ConsumerWidget {
           itemBuilder: (context, index) {
             final manga = items[index];
             final parser = ParserRegistry.instance.getParser(manga.sourceId);
+            final cleanId = manga.id.contains('_') ? manga.id.substring(manga.id.indexOf('_') + 1) : manga.id;
+            final progress = progressMap[manga.id] ?? progressMap[cleanId] ?? 0.0;
 
             return GestureDetector(
               onTap: () {
@@ -438,6 +441,7 @@ class LibraryScreen extends ConsumerWidget {
                 ).then((_) {
                   ref.read(libraryProvider.notifier).loadManga();
                   ref.invalidate(updatesListProvider);
+                  ref.invalidate(libraryProgressProvider);
                 });
               },
               child: Card(
@@ -448,31 +452,82 @@ class LibraryScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Expanded(
-                          child: FutureBuilder<File?>(
-                            future: DownloadManager.instance.getLocalCoverFile(manga.id),
-                            builder: (context, snapshot) {
-                              final localFile = snapshot.data;
-                              if (localFile != null) {
-                                return ExtendedImage.file(
-                                  localFile,
-                                  fit: BoxFit.cover,
-                                );
-                              }
-                              if (manga.coverUrl.isNotEmpty) {
-                                return ExtendedImage.network(
-                                  manga.coverUrl,
-                                  fit: BoxFit.cover,
-                                  headers: parser?.headers,
-                                  cache: true,
-                                );
-                              }
-                              return Container(
-                                color: Colors.black26,
-                                child: const Center(
-                                  child: Icon(Icons.broken_image_outlined, color: Colors.white38),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              FutureBuilder<File?>(
+                                future: DownloadManager.instance.getLocalCoverFile(manga.id),
+                                builder: (context, snapshot) {
+                                  final localFile = snapshot.data;
+                                  if (localFile != null) {
+                                    return ExtendedImage.file(
+                                      localFile,
+                                      fit: BoxFit.cover,
+                                    );
+                                  }
+                                  if (manga.coverUrl.isNotEmpty) {
+                                    return ExtendedImage.network(
+                                      manga.coverUrl,
+                                      fit: BoxFit.cover,
+                                      headers: parser?.headers,
+                                      cache: true,
+                                    );
+                                  }
+                                  return Container(
+                                    color: Colors.black26,
+                                    child: const Center(
+                                      child: Icon(Icons.broken_image_outlined, color: Colors.white38),
+                                    ),
+                                  );
+                                },
+                              ),
+                              if (progress > 0)
+                                Positioned(
+                                  bottom: 0,
+                                  left: 0,
+                                  right: 0,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Container(
+                                        margin: const EdgeInsets.only(right: 6, bottom: 4),
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.8),
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(
+                                            color: progress >= 1.0
+                                                ? const Color(0xFF10B981)
+                                                : const Color(0xFF00F0FF).withValues(alpha: 0.6),
+                                            width: 0.8,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '${(progress * 100).toInt()}%',
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: progress >= 1.0
+                                                ? const Color(0xFF10B981)
+                                                : const Color(0xFF00F0FF),
+                                          ),
+                                        ),
+                                      ),
+                                      LinearProgressIndicator(
+                                        value: progress,
+                                        minHeight: 3,
+                                        backgroundColor: Colors.black45,
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          progress >= 1.0
+                                              ? const Color(0xFF10B981)
+                                              : const Color(0xFF00F0FF),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              );
-                            },
+                            ],
                           ),
                         ),
                         Container(

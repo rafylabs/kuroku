@@ -18,11 +18,13 @@ class ReaderArgs {
   final Manga manga;
   final MangaChapter chapter;
   final int initialPage;
+  final double initialOffset;
 
   const ReaderArgs({
     required this.manga,
     required this.chapter,
     this.initialPage = 0,
+    this.initialOffset = 0.0,
   });
 
   @override
@@ -39,12 +41,14 @@ class ReaderArgs {
 class ReaderState {
   final List<MangaPage> pages;
   final int currentPage;
+  final double currentOffset;
   final bool isLoading;
   final String? error;
 
   const ReaderState({
     this.pages = const [],
     this.currentPage = 0,
+    this.currentOffset = 0.0,
     this.isLoading = false,
     this.error,
   });
@@ -52,12 +56,14 @@ class ReaderState {
   ReaderState copyWith({
     List<MangaPage>? pages,
     int? currentPage,
+    double? currentOffset,
     bool? isLoading,
     String? error,
   }) {
     return ReaderState(
       pages: pages ?? this.pages,
       currentPage: currentPage ?? this.currentPage,
+      currentOffset: currentOffset ?? this.currentOffset,
       isLoading: isLoading ?? this.isLoading,
       error: error,
     );
@@ -80,6 +86,7 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
         state = state.copyWith(
           pages: downloadedPages,
           currentPage: arg.initialPage,
+          currentOffset: arg.initialOffset,
           isLoading: false,
         );
 
@@ -87,6 +94,7 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
           manga: arg.manga,
           chapter: arg.chapter,
           page: arg.initialPage,
+          scrollOffset: arg.initialOffset,
         );
         return;
       }
@@ -99,6 +107,7 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
       state = state.copyWith(
         pages: pages,
         currentPage: arg.initialPage,
+        currentOffset: arg.initialOffset,
         isLoading: false,
       );
 
@@ -107,6 +116,7 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
         manga: arg.manga,
         chapter: arg.chapter,
         page: arg.initialPage,
+        scrollOffset: arg.initialOffset,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -115,19 +125,41 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
 
   void onPageChanged(int index) {
     if (index == state.currentPage) return;
-    state = state.copyWith(currentPage: index);
+    state = state.copyWith(currentPage: index, currentOffset: 0.0);
 
-    final isFinished = index >= state.pages.length - 1;
+    final isFinished = state.pages.isNotEmpty && index >= state.pages.length - 1;
     AppDatabase.instance.updateChapterProgress(
       arg.chapter.id,
       index,
       isFinished,
+      scrollOffset: 0.0,
     );
 
     AppDatabase.instance.recordHistory(
       manga: arg.manga,
       chapter: arg.chapter,
       page: index,
+      scrollOffset: 0.0,
+    );
+  }
+
+  void onPositionChanged(int index, double offset) {
+    if (index == state.currentPage && (offset - state.currentOffset).abs() < 0.01) return;
+    state = state.copyWith(currentPage: index, currentOffset: offset);
+
+    final isFinished = state.pages.isNotEmpty && index >= state.pages.length - 1;
+    AppDatabase.instance.updateChapterProgress(
+      arg.chapter.id,
+      index,
+      isFinished,
+      scrollOffset: offset,
+    );
+
+    AppDatabase.instance.recordHistory(
+      manga: arg.manga,
+      chapter: arg.chapter,
+      page: index,
+      scrollOffset: offset,
     );
   }
 }

@@ -13,6 +13,14 @@ final updatesListProvider = FutureProvider<List<ChapterUpdate>>((ref) async {
   return await AppDatabase.instance.getRecentUpdates();
 });
 
+final libraryProgressProvider = FutureProvider<Map<String, double>>((ref) async {
+  final libraryAsync = ref.watch(libraryProvider);
+  final items = libraryAsync.value ?? [];
+  if (items.isEmpty) return {};
+  final ids = items.map((m) => m.id).toList();
+  return await AppDatabase.instance.getReadingProgressForManga(ids);
+});
+
 class LibraryNotifier extends StateNotifier<AsyncValue<List<Manga>>> {
   final Ref ref;
 

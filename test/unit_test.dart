@@ -269,5 +269,42 @@ void main() {
       expect((card.readingProgress * 100).round(), 98);
       expect(card.isFavorite, isTrue);
     });
+
+    test('MangaChapter and HistoryEntry support fractional scroll alignment', () {
+      final ch = MangaChapter(
+        id: 'ch_test',
+        mangaId: 'manga_test',
+        title: 'Chapter 346',
+        number: 346.0,
+        url: '346',
+        isRead: true,
+        lastReadPage: 8,
+        lastReadOffset: -0.45,
+      );
+
+      expect(ch.isRead, isTrue);
+      expect(ch.lastReadPage, 8);
+      expect(ch.lastReadOffset, -0.45);
+
+      final map = ch.toMap();
+      expect(map['is_read'], 1);
+      expect(map['last_read_offset'], -0.45);
+
+      final restored = MangaChapter.fromMap(map);
+      expect(restored.lastReadOffset, -0.45);
+      expect(restored.isRead, isTrue);
+
+      final manga = Manga(id: 'm1', title: 'Overgeared', url: '3959', coverUrl: 'cover', sourceId: 'shinigami');
+      final hist = HistoryEntry(
+        manga: manga,
+        chapter: ch,
+        page: 8,
+        scrollOffset: -0.45,
+        updatedAt: DateTime(2026, 10, 24),
+      );
+      expect(hist.page, 8);
+      expect(hist.scrollOffset, -0.45);
+      expect(hist.toMap()['scroll_offset'], -0.45);
+    });
   });
 }

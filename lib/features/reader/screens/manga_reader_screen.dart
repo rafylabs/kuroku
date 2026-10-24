@@ -45,7 +45,10 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
     visible.sort((a, b) => a.itemLeadingEdge.compareTo(b.itemLeadingEdge));
     final topVisible = visible.first;
 
-    ref.read(readerProvider(widget.args).notifier).onPageChanged(topVisible.index);
+    ref.read(readerProvider(widget.args).notifier).onPositionChanged(
+      topVisible.index,
+      topVisible.itemLeadingEdge,
+    );
   }
 
   @override
@@ -61,18 +64,21 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
     try {
       final readerState = ref.read(readerProvider(widget.args));
       final currentPage = readerState.currentPage;
+      final currentOffset = readerState.currentOffset;
       final isFinished = readerState.pages.isNotEmpty && currentPage >= readerState.pages.length - 1;
 
       AppDatabase.instance.updateChapterProgress(
         widget.args.chapter.id,
         currentPage,
         isFinished,
+        scrollOffset: currentOffset,
       );
 
       AppDatabase.instance.recordHistory(
         manga: widget.args.manga,
         chapter: widget.args.chapter,
         page: currentPage,
+        scrollOffset: currentOffset,
       );
     } catch (_) {}
   }
@@ -429,11 +435,13 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
     Map<String, String>? headers,
   ) {
     final initialIndex = widget.args.initialPage.clamp(0, pages.isEmpty ? 0 : pages.length - 1);
+    final initialAlignment = widget.args.initialOffset.clamp(-1.0, 0.0);
 
     return ScrollablePositionedList.builder(
       itemScrollController: _itemScrollController,
       itemPositionsListener: _itemPositionsListener,
       initialScrollIndex: initialIndex,
+      initialAlignment: initialAlignment,
       itemCount: pages.length,
       itemBuilder: (context, index) {
         final page = pages[index];
