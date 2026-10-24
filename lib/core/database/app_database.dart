@@ -331,6 +331,20 @@ class AppDatabase {
     }).toList();
   }
 
+  Future<void> clearHistory() async {
+    final db = await database;
+    await db.delete('history');
+  }
+
+  Future<void> deleteHistoryEntry(String mangaId, String chapterId) async {
+    final db = await database;
+    await db.delete(
+      'history',
+      where: 'manga_id = ? AND chapter_id = ?',
+      whereArgs: [mangaId, chapterId],
+    );
+  }
+
   // --- Custom Sources Operations ---
   Future<List<CustomSourceConfig>> getCustomSources() async {
     final db = await database;

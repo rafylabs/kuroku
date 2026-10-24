@@ -8,6 +8,8 @@ import 'package:kuroku/core/parser/parser_registry.dart';
 import 'package:kuroku/core/download/download_manager.dart';
 import 'package:kuroku/core/services/library_update_service.dart';
 import 'package:kuroku/core/services/app_update_service.dart';
+import 'package:kuroku/features/history/providers/history_provider.dart';
+import 'package:kuroku/core/database/models/history_entry.dart';
 import 'package:kuroku/core/theme/app_theme.dart';
 
 void main() {
@@ -198,6 +200,34 @@ void main() {
       expect(updater.isVersionNewer('2.0.0', '1.9.9'), isTrue);
       expect(updater.isVersionNewer('1.3.0', '1.3.1'), isFalse);
       expect(updater.isVersionNewer('1.3.1', '1.3.1'), isFalse);
+    });
+
+    test('UnifiedHistoryItem handles read and update items properly', () {
+      const manga = Manga(id: 'm1', title: 'Solo Leveling', url: 'u1', coverUrl: 'c1', sourceId: 'shinigami');
+      const chapter = MangaChapter(id: 'ch1', mangaId: 'm1', title: 'Ch 1', number: 1.0, url: 'u1');
+      final readEntry = HistoryEntry(manga: manga, chapter: chapter, page: 5, updatedAt: DateTime(2026, 10, 20));
+
+      final readItem = UnifiedHistoryItem.read(readEntry);
+      expect(readItem.isUpdate, isFalse);
+      expect(readItem.page, 5);
+      expect(readItem.mangaTitle, 'Solo Leveling');
+
+      final update = ChapterUpdate(
+        id: 'up1',
+        mangaId: 'm1',
+        mangaTitle: 'Solo Leveling',
+        coverUrl: 'c1',
+        sourceId: 'shinigami',
+        chapterId: 'ch2',
+        chapterTitle: 'Ch 2',
+        chapterNumber: 2.0,
+        detectedAt: DateTime(2026, 10, 21),
+      );
+
+      final updateItem = UnifiedHistoryItem.update(update);
+      expect(updateItem.isUpdate, isTrue);
+      expect(updateItem.chapterNumber, 2.0);
+      expect(updateItem.isSeen, isFalse);
     });
   });
 }

@@ -164,10 +164,26 @@ class WeebCentralParser extends MangaParser {
         }
       }
 
+      final authorEls = doc.querySelectorAll('a[href*="author="]');
+      final authors = authorEls.map((e) => e.text.trim()).where((e) => e.isNotEmpty).toList();
+
+      final statusEl = doc.querySelector('a[href*="included_status="]');
+      final statusText = statusEl?.text.trim().toLowerCase();
+      MangaStatus status = manga.status;
+      if (statusText != null) {
+        if (statusText.contains('ongoing')) {
+          status = MangaStatus.ongoing;
+        } else if (statusText.contains('complete')) {
+          status = MangaStatus.completed;
+        }
+      }
+
       return manga.copyWith(
         title: title,
         description: desc ?? manga.description,
         genres: genres.isNotEmpty ? genres : manga.genres,
+        author: authors.isNotEmpty ? authors.join(', ') : manga.author,
+        status: status,
       );
     } catch (_) {
       return manga;
@@ -206,12 +222,16 @@ class WeebCentralParser extends MangaParser {
         final match = RegExp(r'([0-9.]+)').firstMatch(name);
         final chNum = double.tryParse(match?.group(1) ?? '0') ?? (links.length - i).toDouble();
 
+        final dateStr = el.querySelector('time')?.attributes['datetime'];
+        final uploadDate = dateStr != null ? DateTime.tryParse(dateStr) : null;
+
         chapters.add(MangaChapter(
           id: '${id}_${manga.id}_$chapterId',
           mangaId: manga.id,
           title: name,
           number: chNum,
           url: chapterId,
+          uploadDate: uploadDate,
         ));
       }
 

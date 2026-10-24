@@ -252,6 +252,35 @@ class ShinigamiParser extends MangaParser {
         }
       }
 
+      final authors = <String>[];
+      final authorList = tax?['Author'] as List<dynamic>?;
+      if (authorList != null) {
+        for (final a in authorList) {
+          if (a is Map<String, dynamic> && a['name'] != null) {
+            authors.add(a['name'] as String);
+          }
+        }
+      }
+
+      final artists = <String>[];
+      final artistList = tax?['Artist'] as List<dynamic>?;
+      if (artistList != null) {
+        for (final a in artistList) {
+          if (a is Map<String, dynamic> && a['name'] != null) {
+            artists.add(a['name'] as String);
+          }
+        }
+      }
+
+      final altTitle = data['alternative_title'] as String?;
+      final rawStatus = data['status'];
+      MangaStatus status = manga.status;
+      if (rawStatus == 1 || rawStatus == '1' || rawStatus == 'Ongoing') {
+        status = MangaStatus.ongoing;
+      } else if (rawStatus == 2 || rawStatus == '2' || rawStatus == 'Completed') {
+        status = MangaStatus.completed;
+      }
+
       String coverUrl = manga.coverUrl;
       if (coverUrl.isEmpty) {
         final portrait = data['cover_portrait_url'] as String?;
@@ -270,6 +299,10 @@ class ShinigamiParser extends MangaParser {
         description: desc ?? manga.description,
         genres: genres,
         coverUrl: coverUrl.isNotEmpty ? coverUrl : manga.coverUrl,
+        author: authors.isNotEmpty ? authors.join(', ') : manga.author,
+        artist: artists.isNotEmpty ? artists.join(', ') : manga.artist,
+        altTitle: (altTitle != null && altTitle.trim().isNotEmpty) ? altTitle.trim() : manga.altTitle,
+        status: status,
       );
     } catch (_) {
       return manga;
@@ -298,12 +331,16 @@ class ShinigamiParser extends MangaParser {
             ? 'Chapter $chNum: $rawTitle'
             : 'Chapter $chNum';
 
+        final releaseDateStr = item['release_date'] as String? ?? item['created_at'] as String?;
+        final uploadDate = releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null;
+
         chapters.add(MangaChapter(
           id: '${id}_${manga.id}_$chId',
           mangaId: manga.id,
           title: title,
           number: chNum,
           url: chId, // Store raw chapter_id in url field
+          uploadDate: uploadDate,
         ));
       }
 
