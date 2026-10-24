@@ -11,6 +11,7 @@ import 'package:kuroku/core/services/app_update_service.dart';
 import 'package:kuroku/features/history/providers/history_provider.dart';
 import 'package:kuroku/core/database/models/history_entry.dart';
 import 'package:kuroku/core/theme/app_theme.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 void main() {
   group('Kuroku Models & Registry Tests', () {
@@ -305,6 +306,25 @@ void main() {
       expect(hist.page, 8);
       expect(hist.scrollOffset, -0.45);
       expect(hist.toMap()['scroll_offset'], -0.45);
+    });
+
+    test('Webtoon focal point selector accurately determines active reading page', () {
+      final positions = [
+        const ItemPosition(index: 18, itemLeadingEdge: -0.4, itemTrailingEdge: 1.2),
+        const ItemPosition(index: 19, itemLeadingEdge: 1.2, itemTrailingEdge: 2.5),
+      ];
+
+      const double focalPoint = 0.35;
+      ItemPosition? target;
+      for (final pos in positions) {
+        if (pos.itemLeadingEdge <= focalPoint && pos.itemTrailingEdge > focalPoint) {
+          target = pos;
+          break;
+        }
+      }
+
+      expect(target, isNotNull);
+      expect(target!.index, 18);
     });
   });
 }

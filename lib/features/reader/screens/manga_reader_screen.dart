@@ -22,7 +22,9 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
   bool _showHud = true;
   late ExtendedPageController _pageController;
   final ItemScrollController _itemScrollController = ItemScrollController();
+  final ScrollOffsetController _scrollOffsetController = ScrollOffsetController();
   final ItemPositionsListener _itemPositionsListener = ItemPositionsListener.create();
+  bool _didApplyInitialOffset = false;
 
   @override
   void initState() {
@@ -34,21 +36,64 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
   }
 
   void _onWebtoonPositionChanged() {
-    final positions = _itemPositionsListener.itemPositions.value;
+    final positions = _itemPositionsListener.itemPositions.value.toList();
     if (positions.isEmpty) return;
 
-    // Filter items currently visible in viewport (trailing edge > 0)
-    final visible = positions.where((pos) => pos.itemTrailingEdge > 0).toList();
-    if (visible.isEmpty) return;
+    // Reading focal point: 35% from the top of the viewport
+    const double focalPoint = 0.35;
 
-    // Pick item closest to the top of viewport
-    visible.sort((a, b) => a.itemLeadingEdge.compareTo(b.itemLeadingEdge));
-    final topVisible = visible.first;
+    ItemPosition? target;
+    for (final pos in positions) {
+      if (pos.itemLeadingEdge <= focalPoint && pos.itemTrailingEdge > focalPoint) {
+        target = pos;
+        break;
+      }
+    }
+
+    if (target == null) {
+      final visible = positions.where((p) => p.itemTrailingEdge > 0 && p.itemLeadingEdge < 1.0).toList();
+      if (visible.isNotEmpty) {
+        visible.sort((a, b) {
+          final visA = a.itemTrailingEdge.clamp(0.0, 1.0) - a.itemLeadingEdge.clamp(0.0, 1.0);
+          final visB = b.itemTrailingEdge.clamp(0.0, 1.0) - b.itemLeadingEdge.clamp(0.0, 1.0);
+          return visB.compareTo(visA);
+        });
+        target = visible.first;
+      } else {
+        positions.sort((a, b) => a.itemLeadingEdge.compareTo(b.itemLeadingEdge));
+        target = positions.first;
+      }
+    }
 
     ref.read(readerProvider(widget.args).notifier).onPositionChanged(
-      topVisible.index,
-      topVisible.itemLeadingEdge,
+      target.index,
+      target.itemLeadingEdge,
     );
+  }
+
+  void _applyInitialSubPageOffset() {
+    if (_didApplyInitialOffset) return;
+    _didApplyInitialOffset = true;
+
+    final initialOffset = widget.args.initialOffset;
+    if (initialOffset < -0.02) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final screenHeight = MediaQuery.of(context).size.height;
+        final scrollDelta = (-initialOffset * screenHeight).clamp(0.0, screenHeight * 3);
+        if (scrollDelta > 5) {
+          try {
+            if (_itemScrollController.isAttached) {
+              _scrollOffsetController.animateScroll(
+                offset: scrollDelta,
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOutCubic,
+              );
+            }
+          } catch (_) {}
+        }
+      });
+    }
   }
 
   @override
@@ -437,14 +482,15 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
     List<MangaPage> pages,
     Map<String, String>? headers,
   ) {
+    _applyInitialSubPageOffset();
     final initialIndex = widget.args.initialPage.clamp(0, pages.isEmpty ? 0 : pages.length - 1);
-    final initialAlignment = widget.args.initialOffset.clamp(-1.0, 0.0);
 
     return ScrollablePositionedList.builder(
       itemScrollController: _itemScrollController,
+      scrollOffsetController: _scrollOffsetController,
       itemPositionsListener: _itemPositionsListener,
       initialScrollIndex: initialIndex,
-      initialAlignment: initialAlignment,
+      initialAlignment: 0.0,
       itemCount: pages.length,
       itemBuilder: (context, index) {
         final page = pages[index];

@@ -2,6 +2,11 @@
 
 All notable changes to Kuroku (黒録) will be documented in this file.
 
+## [v1.3.6] - 2026-10-24
+### 🐛 Perbaikan Bug & Peningkatan:
+- 🎯 **Focal Point Reading Tracking**: Memperbaiki bug lompat halaman saat melanjutkan bacaan dari History (misal dari Page 19 lompat ke Page 21). Posisi halaman aktif kini dihitung berdasarkan garis fokus pandangan mata (35% dari atas layar) dengan penyesuaian scroll desimal via `ScrollOffsetController` sehingga kembali persis ke panel gambar yang sedang dibaca tanpa pergeseran anchor viewport.
+- 🛡️ **Safe Viewport Alignment**: Mencegah nilai alignment negatif yang dapat mengacaukan perhitungan `RenderViewport` Flutter pada tampilan Webtoon bersambung.
+
 ## [v1.3.5] - 2026-10-24
 ### 🐛 Perbaikan Bug & Peningkatan:
 - 🔄 **Multi-Key Chapter Matching**: Perekaman progres baca dan status `is_read` di SQLite kini mencocokkan ID, URL, dan nomor chapter secara serentak sehingga pembacaan chapter terakhir selalu tercatat akurat.
