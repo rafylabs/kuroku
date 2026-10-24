@@ -31,7 +31,7 @@ class LibraryScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Library', style: TextStyle(fontWeight: FontWeight.w900)),
+        title: const Text('Library', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
         actions: [
           ValueListenableBuilder<bool>(
             valueListenable: LibraryUpdateService.instance.isCheckingUpdates,
@@ -87,20 +87,22 @@ class LibraryScreen extends ConsumerWidget {
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
                 ChoiceChip(
-                  label: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.bookmark_rounded, size: 14),
-                      SizedBox(width: 4),
-                      Text('Favorit'),
-                    ],
+                  showCheckmark: false,
+                  avatar: Icon(
+                    Icons.bookmark_rounded,
+                    size: 14,
+                    color: activeFilter == LibraryFilter.favorites
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.grey.shade400,
                   ),
+                  label: const Text('Favorit'),
                   selected: activeFilter == LibraryFilter.favorites,
                   selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                   side: BorderSide(
@@ -111,7 +113,7 @@ class LibraryScreen extends ConsumerWidget {
                   labelStyle: TextStyle(
                     color: activeFilter == LibraryFilter.favorites
                         ? Theme.of(context).colorScheme.primary
-                        : null,
+                        : Colors.grey.shade300,
                     fontWeight: activeFilter == LibraryFilter.favorites
                         ? FontWeight.bold
                         : FontWeight.normal,
@@ -123,14 +125,15 @@ class LibraryScreen extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 ChoiceChip(
-                  label: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.download_for_offline_rounded, size: 14),
-                      SizedBox(width: 4),
-                      Text('Didownload (Offline)'),
-                    ],
+                  showCheckmark: false,
+                  avatar: Icon(
+                    Icons.download_for_offline_rounded,
+                    size: 14,
+                    color: activeFilter == LibraryFilter.downloaded
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.grey.shade400,
                   ),
+                  label: const Text('Didownload (Offline)'),
                   selected: activeFilter == LibraryFilter.downloaded,
                   selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                   side: BorderSide(
@@ -141,7 +144,7 @@ class LibraryScreen extends ConsumerWidget {
                   labelStyle: TextStyle(
                     color: activeFilter == LibraryFilter.downloaded
                         ? Theme.of(context).colorScheme.primary
-                        : null,
+                        : Colors.grey.shade300,
                     fontWeight: activeFilter == LibraryFilter.downloaded
                         ? FontWeight.bold
                         : FontWeight.normal,
@@ -155,12 +158,19 @@ class LibraryScreen extends ConsumerWidget {
                 ValueListenableBuilder<int>(
                   valueListenable: LibraryUpdateService.instance.unseenUpdateCount,
                   builder: (context, unseen, _) {
+                    final isUpdates = activeFilter == LibraryFilter.updates;
                     return ChoiceChip(
+                      showCheckmark: false,
+                      avatar: Icon(
+                        Icons.notifications_active_rounded,
+                        size: 14,
+                        color: isUpdates
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.grey.shade400,
+                      ),
                       label: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.notifications_active_rounded, size: 14),
-                          const SizedBox(width: 4),
                           const Text('Update Terbaru'),
                           if (unseen > 0) ...[
                             const SizedBox(width: 6),
@@ -182,18 +192,18 @@ class LibraryScreen extends ConsumerWidget {
                           ],
                         ],
                       ),
-                      selected: activeFilter == LibraryFilter.updates,
+                      selected: isUpdates,
                       selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                       side: BorderSide(
-                        color: activeFilter == LibraryFilter.updates
+                        color: isUpdates
                             ? Theme.of(context).colorScheme.primary
                             : Theme.of(context).dividerColor,
                       ),
                       labelStyle: TextStyle(
-                        color: activeFilter == LibraryFilter.updates
+                        color: isUpdates
                             ? Theme.of(context).colorScheme.primary
-                            : null,
-                        fontWeight: activeFilter == LibraryFilter.updates
+                            : Colors.grey.shade300,
+                        fontWeight: isUpdates
                             ? FontWeight.bold
                             : FontWeight.normal,
                         fontSize: 12,

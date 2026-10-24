@@ -21,6 +21,10 @@ class ParserRegistry {
     _parsers[parser.id] = parser;
   }
 
+  void registerParser(MangaParser parser) {
+    _register(parser);
+  }
+
   Future<void> loadCustomSources() async {
     try {
       final prefs = await SharedPreferences.getInstance();

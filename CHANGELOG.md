@@ -2,6 +2,13 @@
 
 All notable changes to Kuroku (黒録) will be documented in this file.
 
+## [v1.3.8] - 2026-10-24
+### 🎨 Perbaikan Bug UI & Peningkatan:
+- 📱 **Fix Library UI & Filter Chips**: Memperbaiki AppBar dan tata letak chip kategori filter (`Favorit`, `Didownload (Offline)`, `Update Terbaru`) yang sebelumnya hilang/rusak akibat layout exception `unbounded height` di `PreferredSize` dan tertimpa status bar.
+- 👁️ **High-Contrast Dark Theme Chips**: Label teks dan ikon chip kategori kini tampil kontras dan tajam pada tema gelap tanpa glitch visual.
+- 🎯 **Verifikasi Resume Tengah Chapter**: Pengujian e2e membuktikan posisi scroll di tengah-tengah panel gambar Webtoon tersimpan dan dipulihkan secara 1:1 saat kembali lewat History atau tombol Continue.
+- 🧪 **E2E Visual Regression Harness**: Penyediaan preview harness pengujian headless Skia untuk kestabilan visual UI antarmuka Kuroku.
+
 ## [v1.3.7] - 2026-10-24
 ### ✨ Fitur Baru & Peningkatan:
 - ⚡ **Auto-Mark Previous Chapters Read**: Saat membaca atau menyelesaikan chapter N (misal Chapter 258), seluruh chapter sebelumnya (Chapter 1 hingga 257) secara otomatis ditandai sebagai sudah dibaca (`is_read = 1`). Persentase progress membaca di halaman detail dan kartu Library langsung mengikuti chapter tertinggi yang sedang dibaca.
