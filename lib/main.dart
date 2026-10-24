@@ -11,6 +11,7 @@ import 'core/download/download_manager.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/services/library_update_service.dart';
 import 'core/services/app_update_service.dart';
+import 'features/catalog/providers/catalog_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,16 +54,14 @@ class KurokuApp extends StatelessWidget {
   }
 }
 
-class MainNavigationScreen extends StatefulWidget {
+class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
 
   @override
-  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+  ConsumerState<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int _currentIndex = 0;
-
+class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   @override
   void initState() {
     super.initState();
@@ -87,20 +86,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentIndex = ref.watch(bottomNavIndexProvider);
+
     return Scaffold(
       body: IndexedStack(
-        index: _currentIndex,
+        index: currentIndex,
         children: _screens,
       ),
       bottomNavigationBar: ValueListenableBuilder<int>(
         valueListenable: LibraryUpdateService.instance.unseenUpdateCount,
         builder: (context, unseenCount, _) {
           return BottomNavigationBar(
-            currentIndex: _currentIndex,
+            currentIndex: currentIndex,
             onTap: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
+              ref.read(bottomNavIndexProvider.notifier).state = index;
             },
             items: [
               const BottomNavigationBarItem(

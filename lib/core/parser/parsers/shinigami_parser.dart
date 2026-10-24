@@ -150,6 +150,7 @@ class ShinigamiParser extends MangaParser {
     required SortOrder order,
     String? query,
     String? genre,
+    List<String>? genres,
     String? category,
   }) async {
     final sort = order == SortOrder.popular ? 'popularity' : 'latest';
@@ -169,8 +170,18 @@ class ShinigamiParser extends MangaParser {
       }
     }
 
-    if (genre != null && genre.trim().isNotEmpty && genre.trim().toLowerCase() != 'all') {
-      final slug = _toGenreSlug(genre);
+    final activeSlugs = <String>{};
+    if (genres != null && genres.isNotEmpty) {
+      for (final g in genres) {
+        if (g.trim().isNotEmpty && g.trim().toLowerCase() != 'all') {
+          activeSlugs.add(_toGenreSlug(g));
+        }
+      }
+    } else if (genre != null && genre.trim().isNotEmpty && genre.trim().toLowerCase() != 'all') {
+      activeSlugs.add(_toGenreSlug(genre));
+    }
+
+    for (final slug in activeSlugs) {
       url += '&genre=${Uri.encodeComponent(slug)}';
     }
 

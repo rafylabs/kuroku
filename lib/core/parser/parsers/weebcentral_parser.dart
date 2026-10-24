@@ -32,31 +32,49 @@ class WeebCentralParser extends MangaParser {
   };
 
   @override
-  List<String> get availableCategories => const ['All', 'Manga', 'Manhwa', 'Manhua'];
+  List<String> get availableCategories => const ['All', 'Manga', 'Manhwa', 'Manhua', 'OEL'];
 
   @override
   List<String> get availableGenres => const [
     'All',
     'Action',
+    'Adult',
     'Adventure',
     'Comedy',
+    'Doujinshi',
     'Drama',
+    'Ecchi',
     'Fantasy',
+    'Gender Bender',
     'Harem',
+    'Hentai',
     'Historical',
     'Horror',
     'Isekai',
+    'Josei',
+    'Lolicon',
     'Martial Arts',
+    'Mature',
     'Mecha',
     'Mystery',
     'Psychological',
     'Romance',
     'School Life',
-    'Sci-Fi',
+    'Sci-fi',
+    'Seinen',
+    'Shotacon',
+    'Shoujo',
+    'Shoujo Ai',
+    'Shounen',
+    'Shounen Ai',
     'Slice of Life',
+    'Smut',
     'Sports',
     'Supernatural',
     'Tragedy',
+    'Yaoi',
+    'Yuri',
+    'Other',
   ];
 
   @override
@@ -65,6 +83,7 @@ class WeebCentralParser extends MangaParser {
     required SortOrder order,
     String? query,
     String? genre,
+    List<String>? genres,
     String? category,
   }) async {
     final offset = (page - 1) * 32;
@@ -79,8 +98,27 @@ class WeebCentralParser extends MangaParser {
       url += '&included_type=${Uri.encodeComponent(category.trim())}';
     }
 
-    if (genre != null && genre.trim().isNotEmpty && genre.trim().toLowerCase() != 'all') {
-      url += '&included_tag=${Uri.encodeComponent(genre.trim())}';
+    String normalizeTag(String tag) {
+      final t = tag.trim();
+      for (final g in availableGenres) {
+        if (g.toLowerCase() == t.toLowerCase()) return g;
+      }
+      return t;
+    }
+
+    final activeTags = <String>{};
+    if (genres != null && genres.isNotEmpty) {
+      for (final g in genres) {
+        if (g.trim().isNotEmpty && g.trim().toLowerCase() != 'all') {
+          activeTags.add(normalizeTag(g));
+        }
+      }
+    } else if (genre != null && genre.trim().isNotEmpty && genre.trim().toLowerCase() != 'all') {
+      activeTags.add(normalizeTag(genre));
+    }
+
+    for (final tag in activeTags) {
+      url += '&included_tag=${Uri.encodeComponent(tag)}';
     }
 
     url += order == SortOrder.popular

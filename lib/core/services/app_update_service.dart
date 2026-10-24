@@ -30,7 +30,7 @@ class AppUpdateService {
   static final AppUpdateService instance = AppUpdateService._internal();
   AppUpdateService._internal();
 
-  static const String currentVersion = '1.3.8';
+  static const String currentVersion = '1.3.9';
   static const MethodChannel _channel = MethodChannel('com.rafylabs.kuroku/updater');
 
   /// Compare two semver strings: returns true if [remote] is strictly greater than [current]

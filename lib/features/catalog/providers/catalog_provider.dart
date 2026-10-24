@@ -11,6 +11,8 @@ final activeParserProvider = StateProvider<MangaParser>((ref) {
 final searchQueryProvider = StateProvider<String>((ref) => '');
 final selectedCategoryProvider = StateProvider<String>((ref) => 'All');
 final selectedGenreProvider = StateProvider<String>((ref) => 'All');
+final selectedGenresProvider = StateProvider<Set<String>>((ref) => {});
+final bottomNavIndexProvider = StateProvider<int>((ref) => 0);
 
 class CatalogState {
   final List<Manga> items;
@@ -56,7 +58,12 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
     final parser = ref.read(activeParserProvider);
     final query = ref.read(searchQueryProvider);
     final category = ref.read(selectedCategoryProvider);
-    final genre = ref.read(selectedGenreProvider);
+    final genres = ref.read(selectedGenresProvider);
+    final singleGenre = ref.read(selectedGenreProvider);
+
+    final activeGenres = genres.isNotEmpty
+        ? genres.toList()
+        : (singleGenre != 'All' ? [singleGenre] : null);
 
     try {
       final items = await parser.getList(
@@ -64,7 +71,8 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
         order: SortOrder.updated,
         query: query.isNotEmpty ? query : null,
         category: category != 'All' ? category : null,
-        genre: genre != 'All' ? genre : null,
+        genre: activeGenres != null && activeGenres.isNotEmpty ? activeGenres.first : null,
+        genres: activeGenres,
       );
 
       state = state.copyWith(
@@ -88,8 +96,13 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
     final parser = ref.read(activeParserProvider);
     final query = ref.read(searchQueryProvider);
     final category = ref.read(selectedCategoryProvider);
-    final genre = ref.read(selectedGenreProvider);
+    final genres = ref.read(selectedGenresProvider);
+    final singleGenre = ref.read(selectedGenreProvider);
     final nextPage = state.page + 1;
+
+    final activeGenres = genres.isNotEmpty
+        ? genres.toList()
+        : (singleGenre != 'All' ? [singleGenre] : null);
 
     try {
       final nextItems = await parser.getList(
@@ -97,7 +110,8 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
         order: SortOrder.updated,
         query: query.isNotEmpty ? query : null,
         category: category != 'All' ? category : null,
-        genre: genre != 'All' ? genre : null,
+        genre: activeGenres != null && activeGenres.isNotEmpty ? activeGenres.first : null,
+        genres: activeGenres,
       );
 
       state = state.copyWith(
@@ -113,10 +127,11 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
 }
 
 final catalogProvider = StateNotifierProvider<CatalogNotifier, CatalogState>((ref) {
-  // Reload when parser, search query, category, or genre changes
+  // Reload when parser, search query, category, or genres change
   ref.watch(activeParserProvider);
   ref.watch(searchQueryProvider);
   ref.watch(selectedCategoryProvider);
   ref.watch(selectedGenreProvider);
+  ref.watch(selectedGenresProvider);
   return CatalogNotifier(ref);
 });

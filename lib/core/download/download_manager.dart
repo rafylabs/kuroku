@@ -82,10 +82,12 @@ class DownloadManager {
 
     // 2. Fall back to canonical documents directory path
     if (targetDirPath == null) {
-      final computed = await _getChapterDirPath(chapter.mangaId, chapter.id);
-      if (await Directory(computed).exists()) {
-        targetDirPath = computed;
-      }
+      try {
+        final computed = await _getChapterDirPath(chapter.mangaId, chapter.id);
+        if (await Directory(computed).exists()) {
+          targetDirPath = computed;
+        }
+      } catch (_) {}
     }
 
     if (targetDirPath == null) return null;

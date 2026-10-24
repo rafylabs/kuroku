@@ -31,14 +31,16 @@ class MangaPillParser extends MangaParser {
     required SortOrder order,
     String? query,
     String? genre,
+    List<String>? genres,
     String? category,
   }) async {
+    final activeGenre = (genres != null && genres.isNotEmpty) ? genres.first : genre;
     String url;
     if (query != null && query.trim().isNotEmpty) {
       final q = Uri.encodeComponent(query.trim());
       url = 'https://$domain/search?q=$q&page=$page';
-    } else if (genre != null && genre.isNotEmpty && genre.toLowerCase() != 'all') {
-      url = 'https://$domain/search?genre=${Uri.encodeComponent(genre.toLowerCase())}&page=$page';
+    } else if (activeGenre != null && activeGenre.isNotEmpty && activeGenre.toLowerCase() != 'all') {
+      url = 'https://$domain/search?genre=${Uri.encodeComponent(activeGenre.toLowerCase())}&page=$page';
     } else if (category != null && category.isNotEmpty && category.toLowerCase() != 'all') {
       url = 'https://$domain/search?type=${Uri.encodeComponent(category.toLowerCase())}&page=$page';
     } else {

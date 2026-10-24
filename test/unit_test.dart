@@ -356,5 +356,21 @@ void main() {
       expect(updated.firstWhere((c) => c.number == 1.0).isRead, isTrue);
       expect(updated.firstWhere((c) => c.number == 258.0).isRead, isFalse);
     });
+
+    test('WeebCentral available genres and categories are complete', () {
+      final registry = ParserRegistry.instance;
+      final weeb = registry.getParser('weebcentral');
+      expect(weeb, isNotNull);
+      expect(weeb!.availableCategories, contains('OEL'));
+      expect(weeb.availableCategories, contains('Manga'));
+      expect(weeb.availableGenres.length, greaterThanOrEqualTo(38));
+      expect(weeb.availableGenres, contains('Adult'));
+      expect(weeb.availableGenres, contains('Doujinshi'));
+      expect(weeb.availableGenres, contains('Ecchi'));
+      expect(weeb.availableGenres, contains('Sci-fi'));
+      expect(weeb.availableGenres, contains('Seinen'));
+      expect(weeb.availableGenres, contains('Yaoi'));
+      expect(weeb.availableGenres, contains('Yuri'));
+    });
   });
 }

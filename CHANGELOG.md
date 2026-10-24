@@ -2,6 +2,17 @@
 
 All notable changes to Kuroku (黒録) will be documented in this file.
 
+## [v1.3.9] - 2026-10-24
+### ✨ Fitur Baru & Peningkatan:
+- 📜 **Bidirectional Infinite Scroll Reader**: Dukungan infinite scroll dua arah untuk Webtoon dan Continuous Vertical mode. Pengguna dapat langsung scroll ke bawah untuk memuat chapter selanjutnya, atau scroll ke puncak untuk memuat chapter sebelumnya tanpa jeda atau lompatan viewport.
+- 🎴 **Kartu Pemisah Inter-Chapter**: Menampilkan kartu transisi yang rapi di antara chapter (`Akhir Chapter X` → garis pemisah cyan → `Chapter Y: Subtitle`) dengan indikator status pembacaan.
+- ⏭️ **Navigasi Cepat Prev / Next Chapter**: Tombol `Prev Ch` dan `Next Ch` pada Bottom HUD memungkinkan pembaca melompati chapter secara instan tanpa perlu kembali ke layar detail manga.
+- 🏷️ **Multi-Genre Filter & Interactive Tags**:
+  - Filter katalog kini mendukung pemilihan multi-genre secara simultan via toggle chip dengan badge counter `Filter (N)` dan chip removable `✕`.
+  - Penambahan 38 genre dan tag lengkap Weeb Central (termasuk tag kritis seperti Adult, Sci-fi, Seinen, Yaoi, Yuri, OEL).
+  - Chip genre pada layar Detail Manga kini dapat diketuk langsung untuk mencari komik terkait di katalog secara instan.
+- 🔄 **Sinkronisasi Dinamis Progress & History**: Indikator judul chapter aktif, nomor halaman, scrubber progress slider, dan riwayat SQLite (`updateChapterProgress`, `recordHistory`) tersinkronisasi otomatis saat user melintasi perbatasan antar chapter.
+
 ## [v1.3.8] - 2026-10-24
 ### 🎨 Perbaikan Bug UI & Peningkatan:
 - 📱 **Fix Library UI & Filter Chips**: Memperbaiki AppBar dan tata letak chip kategori filter (`Favorit`, `Didownload (Offline)`, `Update Terbaru`) yang sebelumnya hilang/rusak akibat layout exception `unbounded height` di `PreferredSize` dan tertimpa status bar.

@@ -31,6 +31,7 @@ class KomikuParser extends MangaParser {
     required SortOrder order,
     String? query,
     String? genre,
+    List<String>? genres,
     String? category,
   }) async {
     String url;

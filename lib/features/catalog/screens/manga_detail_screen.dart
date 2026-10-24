@@ -10,6 +10,7 @@ import '../../../core/download/download_manager.dart';
 import '../../library/providers/library_provider.dart';
 import '../../reader/providers/reader_provider.dart';
 import '../../reader/screens/manga_reader_screen.dart';
+import '../providers/catalog_provider.dart';
 
 class MangaDetailScreen extends ConsumerStatefulWidget {
   final Manga manga;
@@ -324,6 +325,7 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
             chapter: chapter,
             initialPage: initialPage,
             initialOffset: initialOffset,
+            chapters: _chapters,
           ),
         ),
       ),
@@ -895,16 +897,52 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
                       spacing: 6,
                       runSpacing: 6,
                       children: _currentManga.genres.map((g) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1E2026),
+                        return Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              final parser = ParserRegistry.instance.getParser(_currentManga.sourceId);
+                              if (parser != null) {
+                                ref.read(activeParserProvider.notifier).state = parser;
+                              }
+                              ref.read(searchQueryProvider.notifier).state = '';
+                              ref.read(selectedCategoryProvider.notifier).state = 'All';
+                              ref.read(selectedGenresProvider.notifier).state = {g};
+                              ref.read(selectedGenreProvider.notifier).state = g;
+
+                              ref.read(bottomNavIndexProvider.notifier).state = 0;
+                              Navigator.of(context).popUntil((route) => route.isFirst);
+                            },
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white12),
-                          ),
-                          child: Text(
-                            g,
-                            style: const TextStyle(fontSize: 11, color: Colors.white70),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E2026),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.35),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.tag_rounded,
+                                    size: 12,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    g,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         );
                       }).toList(),

@@ -365,7 +365,11 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       builder: (bContext) => Consumer(
         builder: (ctx, innerRef, _) {
           final tempCat = innerRef.watch(selectedCategoryProvider);
-          final tempGenre = innerRef.watch(selectedGenreProvider);
+          final tempGenres = innerRef.watch(selectedGenresProvider);
+          final legacyGenre = innerRef.watch(selectedGenreProvider);
+          final activeGenres = tempGenres.isNotEmpty
+              ? tempGenres
+              : (legacyGenre != 'All' ? {legacyGenre} : <String>{});
 
           return DraggableScrollableSheet(
             initialChildSize: 0.7,
@@ -399,6 +403,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                         onPressed: () {
                           innerRef.read(selectedCategoryProvider.notifier).state = 'All';
                           innerRef.read(selectedGenreProvider.notifier).state = 'All';
+                          innerRef.read(selectedGenresProvider.notifier).state = {};
                         },
                       ),
                     ],
@@ -439,20 +444,38 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                           }).toList(),
                         ),
                         const SizedBox(height: 20),
-                        const Text(
-                          'Genre',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Genre',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                            ),
+                            if (activeGenres.isNotEmpty)
+                              Text(
+                                '${activeGenres.length} genre dipilih',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 8),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: parser.availableGenres.map((g) {
-                            final isSel = tempGenre.toLowerCase() == g.toLowerCase();
-                            return ChoiceChip(
-                              label: Text(g == 'All' ? 'Semua Genre' : g),
+                            final isAll = g.toLowerCase() == 'all';
+                            final isSel = isAll
+                                ? activeGenres.isEmpty
+                                : activeGenres.any((tg) => tg.toLowerCase() == g.toLowerCase());
+                            return FilterChip(
+                              showCheckmark: !isAll,
+                              label: Text(isAll ? 'Semua Genre' : g),
                               selected: isSel,
-                              selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                              selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
                               labelStyle: TextStyle(
                                 color: isSel ? Theme.of(context).colorScheme.primary : null,
                                 fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
@@ -463,7 +486,20 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                                     : Theme.of(context).dividerColor,
                               ),
                               onSelected: (_) {
-                                innerRef.read(selectedGenreProvider.notifier).state = g;
+                                if (isAll) {
+                                  innerRef.read(selectedGenresProvider.notifier).state = {};
+                                  innerRef.read(selectedGenreProvider.notifier).state = 'All';
+                                } else {
+                                  final next = Set<String>.from(activeGenres);
+                                  if (isSel) {
+                                    next.removeWhere((tg) => tg.toLowerCase() == g.toLowerCase());
+                                  } else {
+                                    next.add(g);
+                                  }
+                                  innerRef.read(selectedGenresProvider.notifier).state = next;
+                                  innerRef.read(selectedGenreProvider.notifier).state =
+                                      next.isEmpty ? 'All' : next.first;
+                                }
                               },
                             );
                           }).toList(),
@@ -497,8 +533,12 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
 
   Widget _buildFilterBar(MangaParser parser) {
     final selectedCat = ref.watch(selectedCategoryProvider);
-    final selectedGenre = ref.watch(selectedGenreProvider);
-    final hasActiveFilter = selectedCat != 'All' || selectedGenre != 'All';
+    final selectedGenres = ref.watch(selectedGenresProvider);
+    final legacyGenre = ref.watch(selectedGenreProvider);
+    final activeGenres = selectedGenres.isNotEmpty
+        ? selectedGenres.toList()
+        : (legacyGenre != 'All' ? [legacyGenre] : <String>[]);
+    final hasActiveFilter = selectedCat != 'All' || activeGenres.isNotEmpty;
 
     return Container(
       height: 48,
@@ -523,7 +563,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 color: hasActiveFilter ? Theme.of(context).colorScheme.primary : null,
               ),
               label: Text(
-                'Filter',
+                activeGenres.isNotEmpty ? 'Filter (${activeGenres.length})' : 'Filter',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: hasActiveFilter ? FontWeight.bold : FontWeight.normal,
@@ -541,12 +581,12 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
               onPressed: () => _showFilterBottomSheet(parser),
             ),
           ),
-          if (selectedGenre != 'All')
-            Padding(
+          ...activeGenres.map((g) {
+            return Padding(
               padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
               child: InputChip(
                 label: Text(
-                  selectedGenre,
+                  g,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -557,11 +597,16 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                 side: BorderSide(color: Theme.of(context).colorScheme.primary),
                 onDeleted: () {
-                  ref.read(selectedGenreProvider.notifier).state = 'All';
+                  final next = Set<String>.from(ref.read(selectedGenresProvider));
+                  next.removeWhere((item) => item.toLowerCase() == g.toLowerCase());
+                  ref.read(selectedGenresProvider.notifier).state = next;
+                  ref.read(selectedGenreProvider.notifier).state =
+                      next.isEmpty ? 'All' : next.first;
                 },
                 onPressed: () => _showFilterBottomSheet(parser),
               ),
-            ),
+            );
+          }),
           ...parser.availableCategories.map((cat) {
             final isSelected = selectedCat.toLowerCase() == cat.toLowerCase();
             return Padding(
@@ -582,8 +627,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                       ? Theme.of(context).colorScheme.primary
                       : Theme.of(context).dividerColor,
                 ),
-                onSelected: (val) {
-                  ref.read(selectedCategoryProvider.notifier).state = isSelected ? 'All' : cat;
+                onSelected: (_) {
+                  ref.read(selectedCategoryProvider.notifier).state = cat;
                 },
               ),
             );
