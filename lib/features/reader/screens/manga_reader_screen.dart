@@ -72,6 +72,9 @@ class _MangaReaderScreenState extends ConsumerState<MangaReaderScreen> {
         currentPage,
         isFinished,
         scrollOffset: currentOffset,
+        mangaId: widget.args.manga.id,
+        chapterNumber: widget.args.chapter.number,
+        chapterUrl: widget.args.chapter.url,
       );
 
       AppDatabase.instance.recordHistory(

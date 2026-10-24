@@ -2,6 +2,15 @@
 
 All notable changes to Kuroku (黒録) will be documented in this file.
 
+## [v1.3.5] - 2026-10-24
+### 🐛 Perbaikan Bug & Peningkatan:
+- 🔄 **Multi-Key Chapter Matching**: Perekaman progres baca dan status `is_read` di SQLite kini mencocokkan ID, URL, dan nomor chapter secara serentak sehingga pembacaan chapter terakhir selalu tercatat akurat.
+- 📊 **Reading Progress Persistence**: Memperbaiki bug reading progress 0% di detail manga dan library; sinkronisasi status `is_read` menggunakan multi-key matching (ID, URL, nomor chapter) sehingga tidak terhapus saat memuat ulang dari internet.
+- 🎨 **Visual Chapter Contrast**: Pembedaan visual yang jelas antara chapter yang sudah dibaca (warna teks redup & ikon centang hijau), chapter sedang dibaca (badge halaman cyan & ikon play), dan belum dibaca.
+- 🖐️ **Draggable Sheet Handle**: Area drag bar drawer sekarang terhubung langsung ke `DraggableScrollableController` sehingga dapat digeser mulus ke atas/bawah.
+- 🎯 **Sub-Page Alignment Tracking**: Merekam koordinat scroll desimal (`itemLeadingEdge`) ke SQLite dan memulihkan posisi baca persis di tengah/bawah panel webtoon via `initialAlignment`.
+- 📚 **Library Progress Overlay**: Kartu manga di halaman Library kini menampilkan badge persentase progres dan progress bar membaca secara real-time.
+
 ## [v1.3.4] - 2026-10-24
 ### 🐛 Perbaikan Bug & Peningkatan:
 - 📊 **Reading Progress Persistence**: Memperbaiki bug reading progress 0% di detail manga dan library; sinkronisasi status `is_read` menggunakan multi-key matching (ID, URL, nomor chapter) sehingga tidak terhapus saat memuat ulang dari internet.

@@ -287,8 +287,15 @@ class AppDatabase {
     int page,
     bool isRead, {
     double scrollOffset = 0.0,
+    String? mangaId,
+    double? chapterNumber,
+    String? chapterUrl,
   }) async {
     final db = await database;
+    final cleanMangaId = mangaId != null && mangaId.contains('_')
+        ? mangaId.substring(mangaId.indexOf('_') + 1)
+        : mangaId;
+
     await db.rawUpdate('''
       UPDATE chapters
       SET 
@@ -296,17 +303,52 @@ class AppDatabase {
         last_read_offset = ?,
         is_read = CASE WHEN ? = 1 OR is_read = 1 THEN 1 ELSE 0 END
       WHERE id = ?
-    ''', [page, scrollOffset, isRead ? 1 : 0, chapterId]);
+         OR (url IS NOT NULL AND (url = ? OR url = ?))
+         OR (? IS NOT NULL AND number = ? AND (manga_id = ? OR manga_id = ? OR manga_id LIKE ?))
+    ''', [
+      page,
+      scrollOffset,
+      isRead ? 1 : 0,
+      chapterId,
+      chapterUrl ?? chapterId,
+      chapterId,
+      chapterNumber,
+      chapterNumber ?? -999.0,
+      mangaId ?? '',
+      cleanMangaId ?? '',
+      cleanMangaId != null ? '%$cleanMangaId%' : '',
+    ]);
   }
 
-  Future<void> markChapterRead(String chapterId, bool isRead) async {
+  Future<void> markChapterRead(
+    String chapterId,
+    bool isRead, {
+    String? mangaId,
+    double? chapterNumber,
+    String? chapterUrl,
+  }) async {
     final db = await database;
-    await db.update(
-      'chapters',
-      {'is_read': isRead ? 1 : 0},
-      where: 'id = ?',
-      whereArgs: [chapterId],
-    );
+    final cleanMangaId = mangaId != null && mangaId.contains('_')
+        ? mangaId.substring(mangaId.indexOf('_') + 1)
+        : mangaId;
+
+    await db.rawUpdate('''
+      UPDATE chapters
+      SET is_read = ?
+      WHERE id = ?
+         OR (url IS NOT NULL AND (url = ? OR url = ?))
+         OR (? IS NOT NULL AND number = ? AND (manga_id = ? OR manga_id = ? OR manga_id LIKE ?))
+    ''', [
+      isRead ? 1 : 0,
+      chapterId,
+      chapterUrl ?? chapterId,
+      chapterId,
+      chapterNumber,
+      chapterNumber ?? -999.0,
+      mangaId ?? '',
+      cleanMangaId ?? '',
+      cleanMangaId != null ? '%$cleanMangaId%' : '',
+    ]);
   }
 
   Future<void> markPreviousChaptersRead(String mangaId, double chapterNumber) async {
@@ -333,7 +375,15 @@ class AppDatabase {
   Future<Map<String, double>> getReadingProgressForManga(List<String> mangaIds) async {
     if (mangaIds.isEmpty) return {};
     final db = await database;
-    final placeholders = List.filled(mangaIds.length, '?').join(',');
+    final Set<String> allQueryIds = {};
+    for (final id in mangaIds) {
+      allQueryIds.add(id);
+      if (id.contains('_')) {
+        allQueryIds.add(id.substring(id.indexOf('_') + 1));
+      }
+    }
+    final idList = allQueryIds.toList();
+    final placeholders = List.filled(idList.length, '?').join(',');
     final rows = await db.rawQuery('''
       SELECT 
         manga_id,
@@ -342,7 +392,7 @@ class AppDatabase {
       FROM chapters
       WHERE manga_id IN ($placeholders)
       GROUP BY manga_id
-    ''', mangaIds);
+    ''', idList);
 
     final Map<String, double> progress = {};
     for (final row in rows) {
@@ -353,7 +403,14 @@ class AppDatabase {
         final val = (read / total).clamp(0.0, 1.0);
         progress[mangaId] = val;
         if (mangaId.contains('_')) {
-          progress[mangaId.substring(mangaId.indexOf('_') + 1)] = val;
+          final clean = mangaId.substring(mangaId.indexOf('_') + 1);
+          progress[clean] = val;
+        } else {
+          for (final origId in mangaIds) {
+            if (origId.endsWith('_$mangaId')) {
+              progress[origId] = val;
+            }
+          }
         }
       }
     }

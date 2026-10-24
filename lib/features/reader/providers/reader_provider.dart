@@ -133,6 +133,9 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
       index,
       isFinished,
       scrollOffset: 0.0,
+      mangaId: arg.manga.id,
+      chapterNumber: arg.chapter.number,
+      chapterUrl: arg.chapter.url,
     );
 
     AppDatabase.instance.recordHistory(
@@ -153,6 +156,9 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
       index,
       isFinished,
       scrollOffset: offset,
+      mangaId: arg.manga.id,
+      chapterNumber: arg.chapter.number,
+      chapterUrl: arg.chapter.url,
     );
 
     AppDatabase.instance.recordHistory(

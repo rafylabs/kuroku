@@ -304,7 +304,13 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
 
   Future<void> _toggleChapterRead(MangaChapter chapter) async {
     final newRead = !chapter.isRead;
-    await AppDatabase.instance.markChapterRead(chapter.id, newRead);
+    await AppDatabase.instance.markChapterRead(
+      chapter.id,
+      newRead,
+      mangaId: _currentManga.id,
+      chapterNumber: chapter.number,
+      chapterUrl: chapter.url,
+    );
     await _loadLocalCache();
   }
 
