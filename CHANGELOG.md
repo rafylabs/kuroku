@@ -2,6 +2,11 @@
 
 All notable changes to Kuroku (黒録) will be documented in this file.
 
+## [v1.3.7] - 2026-10-24
+### ✨ Fitur Baru & Peningkatan:
+- ⚡ **Auto-Mark Previous Chapters Read**: Saat membaca atau menyelesaikan chapter N (misal Chapter 258), seluruh chapter sebelumnya (Chapter 1 hingga 257) secara otomatis ditandai sebagai sudah dibaca (`is_read = 1`). Persentase progress membaca di halaman detail dan kartu Library langsung mengikuti chapter tertinggi yang sedang dibaca.
+- 🔄 **Auto Progress Propagation in SQLite**: Penyesuaian query kalkulasi progress database agar menghitung chapter sebelumnya sebagai terbaca berdasarkan chapter tertinggi yang memiliki riwayat baca.
+
 ## [v1.3.6] - 2026-10-24
 ### 🐛 Perbaikan Bug & Peningkatan:
 - 🎯 **Focal Point Reading Tracking**: Memperbaiki bug lompat halaman saat melanjutkan bacaan dari History (misal dari Page 19 lompat ke Page 21). Posisi halaman aktif kini dihitung berdasarkan garis fokus pandangan mata (35% dari atas layar) dengan penyesuaian scroll desimal via `ScrollOffsetController` sehingga kembali persis ke panel gambar yang sedang dibaca tanpa pergeseran anchor viewport.

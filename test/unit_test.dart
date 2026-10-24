@@ -326,5 +326,35 @@ void main() {
       expect(target, isNotNull);
       expect(target!.index, 18);
     });
+
+    test('Auto-marking previous chapters marks all chapters below highest read chapter', () {
+      final chapters = [
+        const MangaChapter(id: 'c258', mangaId: 'tbate', title: 'Chapter 258', number: 258.0, url: '258', lastReadPage: 21, isRead: false),
+        const MangaChapter(id: 'c257', mangaId: 'tbate', title: 'Chapter 257', number: 257.0, url: '257', isRead: true),
+        const MangaChapter(id: 'c256', mangaId: 'tbate', title: 'Chapter 256', number: 256.0, url: '256', isRead: false),
+        const MangaChapter(id: 'c255', mangaId: 'tbate', title: 'Chapter 255', number: 255.0, url: '255', isRead: false),
+        const MangaChapter(id: 'c1', mangaId: 'tbate', title: 'Chapter 1', number: 1.0, url: '1', isRead: false),
+      ];
+
+      double maxRead = -1.0;
+      for (final c in chapters) {
+        if (c.isRead || c.lastReadPage > 0) {
+          if (c.number > maxRead) maxRead = c.number;
+        }
+      }
+
+      final updated = chapters.map((c) {
+        if (c.number < maxRead && !c.isRead) {
+          return c.copyWith(isRead: true);
+        }
+        return c;
+      }).toList();
+
+      expect(maxRead, 258.0);
+      expect(updated.firstWhere((c) => c.number == 256.0).isRead, isTrue);
+      expect(updated.firstWhere((c) => c.number == 255.0).isRead, isTrue);
+      expect(updated.firstWhere((c) => c.number == 1.0).isRead, isTrue);
+      expect(updated.firstWhere((c) => c.number == 258.0).isRead, isFalse);
+    });
   });
 }

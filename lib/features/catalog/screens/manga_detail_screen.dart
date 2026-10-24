@@ -70,6 +70,34 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
     }
   }
 
+  List<MangaChapter> _autoMarkPreviousChapters(List<MangaChapter> chapters) {
+    if (chapters.isEmpty) return chapters;
+    double maxReadNumber = -1.0;
+    for (final c in chapters) {
+      if (c.isRead || c.lastReadPage > 0) {
+        if (c.number > maxReadNumber) {
+          maxReadNumber = c.number;
+        }
+      }
+    }
+    if (maxReadNumber <= 0) return chapters;
+
+    bool hasChanges = false;
+    final updated = chapters.map((c) {
+      if (c.number < maxReadNumber && !c.isRead) {
+        hasChanges = true;
+        return c.copyWith(isRead: true);
+      }
+      return c;
+    }).toList();
+
+    if (hasChanges) {
+      AppDatabase.instance.markPreviousChaptersRead(_currentManga.id, maxReadNumber);
+    }
+
+    return updated;
+  }
+
   Future<void> _loadLocalCache() async {
     final savedManga = await AppDatabase.instance.getManga(widget.manga.id);
     final savedChapters = await AppDatabase.instance.getChapters(widget.manga.id);
@@ -81,7 +109,7 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
           _currentManga = savedManga;
         }
         if (savedChapters.isNotEmpty) {
-          _chapters = savedChapters;
+          _chapters = _autoMarkPreviousChapters(savedChapters);
           _isLoading = false;
         }
       });
@@ -116,6 +144,8 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
           return c;
         }).toList();
 
+        final syncedChapters = _autoMarkPreviousChapters(mergedChapters);
+
         setState(() {
           _currentManga = detailedManga.copyWith(
             isFavorite: _isFavorite,
@@ -127,7 +157,7 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
             altTitle: detailedManga.altTitle ?? _currentManga.altTitle,
             status: detailedManga.status,
           );
-          _chapters = mergedChapters;
+          _chapters = syncedChapters;
           _isLoading = false;
         });
 
@@ -138,7 +168,7 @@ class _MangaDetailScreenState extends ConsumerState<MangaDetailScreen> {
           final savedChapters = await AppDatabase.instance.getChapters(widget.manga.id);
           if (savedChapters.isNotEmpty) {
             setState(() {
-              _chapters = savedChapters;
+              _chapters = _autoMarkPreviousChapters(savedChapters);
             });
           }
         }

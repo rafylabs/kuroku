@@ -318,6 +318,17 @@ class AppDatabase {
       cleanMangaId ?? '',
       cleanMangaId != null ? '%$cleanMangaId%' : '',
     ]);
+
+    // Auto-mark all previous chapters as read if reading or completing a chapter
+    if (mangaId != null && chapterNumber != null && chapterNumber > 0) {
+      final targetNumber = isRead ? chapterNumber : chapterNumber - 0.001;
+      await db.rawUpdate('''
+        UPDATE chapters
+        SET is_read = 1
+        WHERE (manga_id = ? OR manga_id = ? OR manga_id LIKE ?)
+          AND number <= ?
+      ''', [mangaId, cleanMangaId, '%$cleanMangaId%', targetNumber]);
+    }
   }
 
   Future<void> markChapterRead(
@@ -349,6 +360,11 @@ class AppDatabase {
       cleanMangaId ?? '',
       cleanMangaId != null ? '%$cleanMangaId%' : '',
     ]);
+
+    // If marking as read, auto-mark all previous chapters as read
+    if (isRead && mangaId != null && chapterNumber != null && chapterNumber > 0) {
+      await markPreviousChaptersRead(mangaId, chapterNumber);
+    }
   }
 
   Future<void> markPreviousChaptersRead(String mangaId, double chapterNumber) async {
@@ -384,6 +400,21 @@ class AppDatabase {
     }
     final idList = allQueryIds.toList();
     final placeholders = List.filled(idList.length, '?').join(',');
+
+    try {
+      await db.rawUpdate('''
+        UPDATE chapters
+        SET is_read = 1
+        WHERE manga_id IN ($placeholders)
+          AND number < (
+            SELECT COALESCE(MAX(c2.number), 0)
+            FROM chapters c2
+            WHERE (c2.manga_id = chapters.manga_id OR c2.manga_id LIKE '%' || chapters.manga_id || '%')
+              AND (c2.is_read = 1 OR c2.last_read_page > 0)
+          )
+      ''', idList);
+    } catch (_) {}
+
     final rows = await db.rawQuery('''
       SELECT 
         manga_id,
