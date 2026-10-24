@@ -202,6 +202,28 @@ void main() {
       expect(updater.isVersionNewer('1.3.1', '1.3.1'), isFalse);
     });
 
+    test('AppUpdateService cleanReleaseNotes filters raw tables and download links', () {
+      final updater = AppUpdateService.instance;
+      const rawBody = '''### 📝 What's New in v1.3.3
+- 📰 **Kotatsu-Style Feed**: Redesain tab History.
+- 🔍 **Live Search**: Cari komik cepat.
+
+---
+### 📱 Direct Downloads
+| Platform | File | Direct Download |
+|---|---|---|
+| **Android** | `Kuroku.apk` | [Download](https://...) |
+''';
+
+      final cleaned = updater.cleanReleaseNotes(rawBody);
+      expect(cleaned.contains('Kotatsu-Style Feed'), isTrue);
+      expect(cleaned.contains('Live Search'), isTrue);
+      expect(cleaned.contains('Direct Downloads'), isFalse);
+      expect(cleaned.contains('| Platform |'), isFalse);
+      expect(cleaned.contains('**'), isFalse);
+      expect(cleaned.startsWith('###'), isFalse);
+    });
+
     test('UnifiedHistoryItem handles read and update items properly', () {
       const manga = Manga(id: 'm1', title: 'Solo Leveling', url: 'u1', coverUrl: 'c1', sourceId: 'shinigami');
       const chapter = MangaChapter(id: 'ch1', mangaId: 'm1', title: 'Ch 1', number: 1.0, url: 'u1');

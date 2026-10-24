@@ -51,6 +51,27 @@ class AppUpdateService {
     }
   }
 
+  /// Clean release notes by stripping download tables and markdown clutter
+  String cleanReleaseNotes(String body) {
+    if (body.isEmpty) return 'Peningkatan performa dan pembaruan antarmuka.';
+
+    String notes = body;
+    if (notes.contains('---')) {
+      notes = notes.split('---').first.trim();
+    } else if (notes.contains('### 📱')) {
+      notes = notes.split('### 📱').first.trim();
+    }
+
+    // Strip markdown tables if any remain
+    notes = notes.split('\n').where((line) => !line.trim().startsWith('|')).join('\n');
+
+    // Clean bold syntax and headers
+    notes = notes.replaceAll('**', '');
+    notes = notes.replaceAll(RegExp(r'^#+\s*', multiLine: true), '');
+
+    return notes.trim();
+  }
+
   Future<AppReleaseInfo?> checkUpdate() async {
     try {
       final res = await KurokuHttpClient.instance.get<Map<String, dynamic>>(
@@ -142,6 +163,7 @@ class AppUpdateService {
     double? downloadProgress;
     bool isDownloading = false;
     String? errorMessage;
+    final cleanNotes = cleanReleaseNotes(release.body);
 
     showDialog(
       context: context,
@@ -176,21 +198,25 @@ class AppUpdateService {
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   const SizedBox(height: 12),
-                  if (release.body.isNotEmpty) ...[
+                  if (cleanNotes.isNotEmpty) ...[
                     const Text(
                       'Catatan Rilis:',
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF00F0FF)),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(maxHeight: 180),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: Colors.black45,
                         borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white12),
                       ),
-                      child: Text(
-                        release.body,
-                        style: const TextStyle(fontSize: 11, color: Colors.white70),
+                      child: SingleChildScrollView(
+                        child: Text(
+                          cleanNotes,
+                          style: const TextStyle(fontSize: 11, color: Colors.white70, height: 1.4),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),

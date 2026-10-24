@@ -104,15 +104,45 @@ jobs:
           name: Kuroku-Android
           path: release-files
 
-      - name: Determine Release Tag
+      - name: Extract Tag and Release Notes
         id: tag_info
         run: |
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            TAG="${GITHUB_REF#refs/tags/}"
           else
             VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
-            echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+            TAG="v${VERSION}"
           fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+          # Extract notes from CHANGELOG.md for this tag if available
+          python3 -c "
+          import re, sys
+          tag = '${TAG}'
+          clean_tag = tag.lstrip('v')
+          notes = ''
+          try:
+              with open('CHANGELOG.md') as f:
+                  content = f.read()
+              pattern = r'## \[(?:v)?' + re.escape(clean_tag) + r'\].*?\n(.*?)(?=\n## \[|\Z)'
+              match = re.search(pattern, content, re.DOTALL)
+              if match:
+                  notes = match.group(1).strip()
+          except Exception:
+              pass
+
+          if not notes:
+              notes = '### 📝 What\'s Changed\n- Maintenance and performance enhancements.'
+
+          body = notes + '\n\n---\n### 📱 Direct Downloads\n'
+          body += '| Platform | File | Direct Download |\n'
+          body += '|---|---|---|\n'
+          body += f'| **Android** | \`Kuroku.apk\` | [Download Kuroku.apk](https://github.com/${{ github.repository }}/releases/download/{tag}/Kuroku.apk) |\n'
+          body += f'| **iOS** | \`Kuroku.ipa\` | [Download Kuroku.ipa](https://github.com/${{ github.repository }}/releases/download/{tag}/Kuroku.ipa) |\n'
+
+          with open('release_notes.txt', 'w') as out:
+              out.write(body)
+          "
 
       - name: Publish / Update GitHub Release
         uses: softprops/action-gh-release@v2
@@ -125,25 +155,4 @@ jobs:
           files: |
             release-files/Kuroku.ipa
             release-files/Kuroku.apk
-          body: |
-            ### 📱 Kuroku (黒録) Direct Downloads
-            
-            Download the app directly on your mobile device below without needing an App Store or Play Store account:
-            
-            | Platform | File | Direct Download | Installation Instructions |
-            |---|---|---|---|
-            | **iOS** | `Kuroku.ipa` | [Download Kuroku.ipa](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag_info.outputs.tag }}/Kuroku.ipa) | Sideload via AltStore, SideStore, TrollStore, or Sideloadly |
-            | **Android** | `Kuroku.apk` | [Download Kuroku.apk](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag_info.outputs.tag }}/Kuroku.apk) | Direct APK installation (allow unknown sources) |
-            
-            ---
-            
-            #### 🍏 How to Install on iOS:
-            1. **AltStore / SideStore (Recommended)**: Download `Kuroku.ipa` directly in Safari on your iPhone/iPad. Open AltStore, tap `+`, select `Kuroku.ipa`.
-            2. **TrollStore (iOS 14.0 - 17.0)**: Download `Kuroku.ipa` and open in TrollStore for permanent install without 7-day expiration.
-            3. **Sideloadly / Scarlet (Mac/PC)**: Drag `Kuroku.ipa` and install via your free Apple ID.
-            
-            *Note for iOS 16+: Enable Developer Mode in Settings > Privacy & Security > Developer Mode.*
-            
-            #### 🤖 How to Install on Android:
-            1. Download `Kuroku.apk` directly in Chrome.
-            2. Tap the downloaded file to install. Allow "Install unknown apps" if prompted.
+          body_path: release_notes.txt

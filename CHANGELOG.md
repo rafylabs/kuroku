@@ -1,0 +1,28 @@
+# Changelog
+
+All notable changes to Kuroku (黒録) will be documented in this file.
+
+## [v1.3.3] - 2026-10-24
+### ✨ Fitur Baru & Peningkatan:
+- 📰 **Kotatsu-Style Feed Layout**: Redesain tab History dengan antarmuka Feed modern.
+- 🔍 **Live Search Bar**: Cari komik dan chapter langsung dari bar pencarian atas dengan live filtering.
+- ⚡ **Updates Highlight Carousel**: Kartu komik horizontal dengan badge jumlah chapter baru & indikator progres baca (%).
+- 🏷️ **Read Later & Filter Chips**: Filter cepat untuk komik favorit (Read later), semua entri, notifikasi update, atau riwayat baca.
+- 📅 **Pengelompokan Waktu Kronologis**: Feed terorganisir rapi dalam grup *Today*, *Yesterday*, *2 days ago*, dst.
+- 🔔 **Badge Notifikasi Navbar**: Ikon History di navigasi bawah otomatis menampilkan counter chapter baru yang belum dibaca.
+
+## [v1.3.2] - 2026-10-24
+### ✨ Fitur Baru:
+- 📜 **Kotatsu-Style Chapter Drawer**: Daftar chapter kini ditarik dari bawah (bottom sheet draggable) dengan opsi sorting dan filter download offline.
+- 📊 **Metadata & Reading Progress Card**: Header detail manga menampilkan info Author, Artist, Status, dan progress bar membaca (X dari Y chapter).
+- 🔄 **Unified History & Updates**: Menggabungkan notifikasi rilis chapter baru dengan riwayat bacaan.
+
+## [v1.3.1] - 2026-10-24
+### ✨ Fitur Baru:
+- 🚀 **In-App Updater**: Unduh dan pasang update langsung dari aplikasi Android via FileProvider tanpa perlu download manual dari browser.
+- 🔍 **Cek Update Otomatis & Manual**: Notifikasi update otomatis saat aplikasi dibuka dan opsi cek update manual di Settings.
+
+## [v1.3.0] - 2026-10-24
+### ✨ Fitur Baru:
+- 📥 **Offline Download Manager**: Unduh chapter komik untuk dibaca tanpa koneksi internet.
+- 🏷️ **Filter Kategori & Genre**: Filter mendalam untuk format (Manhwa/Manga/Manhua) dan genre pada katalog Shinigami.
