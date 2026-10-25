@@ -55,6 +55,58 @@ void main() {
       expect(ParserRegistry.instance.activeParser.id, 'custom_feed');
     });
 
+    test('User lifecycle scenario: add custom source -> switch to default -> restart app -> verify persisted', () async {
+      SharedPreferences.setMockInitialValues({});
+      ParserRegistry.instance.resetForTesting();
+
+      // 1. App starts initially
+      await ParserRegistry.instance.loadCustomSources();
+      expect(ParserRegistry.instance.allParsers.length, 2);
+
+      // 2. User adds custom source
+      final jsonStr = '''{
+        "spec_version": 1,
+        "id": "custom_manga",
+        "name": "Custom Manga",
+        "domain": "example.com",
+        "locale": "en",
+        "type": "html",
+        "selectors": {
+          "card": "div.grid > div",
+          "title": "div.title",
+          "cover": "img",
+          "chapters": "a.chap",
+          "pages": "img.page"
+        }
+      }''';
+
+      final config = ParserImporter.fromJsonString(jsonStr);
+      await ParserRegistry.instance.addCustomSource(config);
+      await ParserRegistry.instance.setActiveParserId(config.id);
+
+      expect(ParserRegistry.instance.allParsers.length, 3);
+      expect(ParserRegistry.instance.activeParser.id, 'custom_manga');
+
+      // 3. User switches to default source Shinigami
+      await ParserRegistry.instance.setActiveParserId('shinigami');
+      expect(ParserRegistry.instance.activeParser.id, 'shinigami');
+      expect(ParserRegistry.instance.allParsers.any((p) => p.id == 'custom_manga'), isTrue);
+
+      // 4. User terminates app (process killed, memory cleared)
+      ParserRegistry.instance.resetForTesting();
+      expect(ParserRegistry.instance.allParsers.length, 2); // only built-ins in fresh memory
+      expect(ParserRegistry.instance.allParsers.any((p) => p.id == 'custom_manga'), isFalse);
+
+      // 5. User re-opens app (main() executes loadCustomSources())
+      await ParserRegistry.instance.loadCustomSources();
+
+      // 6. Verification: custom source MUST still be present in allParsers
+      expect(ParserRegistry.instance.allParsers.length, 3);
+      expect(ParserRegistry.instance.allParsers.any((p) => p.id == 'custom_manga'), isTrue);
+      // And active parser should remain Shinigami as user selected
+      expect(ParserRegistry.instance.activeParser.id, 'shinigami');
+    });
+
     test('DynamicMangaParser parses DOM structures with flexible alias selectors', () async {
       const listHtml = '''
         <div class="container">

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../database/app_database.dart';
 import 'manga_parser.dart';
@@ -22,6 +23,14 @@ class ParserRegistry {
   ParserRegistry._internal() {
     _register(_shinigami);
     _register(_weebCentral);
+  }
+
+  @visibleForTesting
+  void resetForTesting() {
+    _parsers.clear();
+    _register(_shinigami);
+    _register(_weebCentral);
+    _activeParserId = null;
   }
 
   void _register(MangaParser parser) {
