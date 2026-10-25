@@ -2,6 +2,17 @@
 
 All notable changes to Kuroku (黒録) will be documented in this file.
 
+## [v1.4.0] - 2026-10-25
+### ✨ Fitur Baru & Peningkatan:
+- 🧩 **Sistem Import & Export Parser Deklaratif**: Pengguna dapat menambahkan sumber komik baru tanpa perlu rebuild aplikasi atau menunggu rilis baru. Cukup salin spesifikasi JSON atau masukkan link URL parser.
+  - Mendukung 4 engine parser: `html` (custom CSS selector deklaratif), `rest`/`json_api` (ekstraksi data REST API JSON murni), `madara`, dan `themesia`.
+  - Dialog import interaktif dengan tab **Paste JSON** dan **Import URL**, live schema validator preview card (status, domain, locale, engine type), serta tombol paste clipboard & template instan.
+  - Opsi export parser terpasang kembali ke clipboard dalam format JSON untuk memudahkan modifikasi dan berbagi antar pengguna.
+- 🎨 **Penyempurnaan Antarmuka Manajemen Sumber**:
+  - Tombol aksi `Import Parser (.json / URL)` langsung pada bottom sheet *Pilih Sumber Komik*.
+  - Menu overflow `more_vert` yang ringkas pada setiap parser kustom: *Edit Domain*, *Export JSON*, dan *Hapus Source*, menyelesaikan isu teks judul terpotong pada layar ponsel sempit.
+  - Indikator badge `CUSTOM` yang elegan pada setiap sumber hasil impor pengguna.
+
 ## [v1.3.9] - 2026-10-24
 ### ✨ Fitur Baru & Peningkatan:
 - 📜 **Bidirectional Infinite Scroll Reader**: Dukungan infinite scroll dua arah untuk Webtoon dan Continuous Vertical mode. Pengguna dapat langsung scroll ke bawah untuk memuat chapter selanjutnya, atau scroll ke puncak untuk memuat chapter sebelumnya tanpa jeda atau lompatan viewport.
