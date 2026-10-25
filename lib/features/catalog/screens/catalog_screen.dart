@@ -77,6 +77,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 final updated = ParserRegistry.instance.getParser(parser.id);
                 if (updated != null && ref.read(activeParserProvider).id == parser.id) {
                   ref.read(activeParserProvider.notifier).state = updated;
+                  await ParserRegistry.instance.setActiveParserId(updated.id);
                 }
               }
               if (dialogCtx.mounted) {
@@ -202,6 +203,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                   final newParser = ParserRegistry.instance.getParser(id);
                   if (newParser != null) {
                     ref.read(activeParserProvider.notifier).state = newParser;
+                    await ParserRegistry.instance.setActiveParserId(newParser.id);
                   }
 
                   if (dialogCtx.mounted) {
@@ -489,6 +491,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                           ref.read(selectedCategoryProvider.notifier).state = 'All';
                           ref.read(selectedGenreProvider.notifier).state = 'All';
                           ref.read(activeParserProvider.notifier).state = newParser;
+                          await ParserRegistry.instance.setActiveParserId(newParser.id);
                         }
                         if (dialogCtx.mounted) {
                           Navigator.pop(dialogCtx);
@@ -630,7 +633,9 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                                   } else if (value == 'delete') {
                                     await ParserRegistry.instance.removeCustomSource(parser.id);
                                     if (ref.read(activeParserProvider).id == parser.id) {
-                                      ref.read(activeParserProvider.notifier).state = ParserRegistry.instance.defaultParser;
+                                      final def = ParserRegistry.instance.defaultParser;
+                                      ref.read(activeParserProvider.notifier).state = def;
+                                      await ParserRegistry.instance.setActiveParserId(def.id);
                                     }
                                     if (ctx.mounted) {
                                       Navigator.pop(ctx);
@@ -678,11 +683,14 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                               ),
                           ],
                         ),
-                        onTap: () {
+                        onTap: () async {
                           ref.read(selectedCategoryProvider.notifier).state = 'All';
                           ref.read(selectedGenreProvider.notifier).state = 'All';
                           ref.read(activeParserProvider.notifier).state = parser;
-                          Navigator.pop(ctx);
+                          await ParserRegistry.instance.setActiveParserId(parser.id);
+                          if (ctx.mounted) {
+                            Navigator.pop(ctx);
+                          }
                         },
                       );
                     },

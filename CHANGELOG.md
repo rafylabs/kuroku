@@ -2,6 +2,14 @@
 
 All notable changes to Kuroku (黒録) will be documented in this file.
 
+## [v1.4.1] - 2026-10-25
+### 🐛 Perbaikan Bug & Peningkatan:
+- 💾 **Persistensi Ganda Custom Source**: Sumber kustom yang ditambahkan kini tersimpan permanen menggunakan sistem dual-persistence (SQLite + backup SharedPreferences) sehingga tidak hilang saat aplikasi ditutup atau di-restart.
+- 🎯 **Penyimpanan Sumber Aktif Otomatis**: Aplikasi kini mengingat dan memulihkan sumber aktif terakhir yang dipilih pengguna saat aplikasi dibuka kembali.
+- 🧩 **Peningkatan Fleksibilitas Engine Parser Dinamis**:
+  - Dukungan variasi penamaan kunci selektor fleksibel (`snake_case` dan `camelCase`).
+  - Fallback selektor cerdas untuk layout grid modern, deteksi nomor chapter, dan atribut lazy-load gambar.
+
 ## [v1.4.0] - 2026-10-25
 ### ✨ Fitur Baru & Peningkatan:
 - 🧩 **Sistem Import & Export Parser Deklaratif**: Pengguna dapat menambahkan sumber komik baru tanpa perlu rebuild aplikasi atau menunggu rilis baru. Cukup salin spesifikasi JSON atau masukkan link URL parser.

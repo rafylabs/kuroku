@@ -250,12 +250,25 @@ class DynamicMangaParser extends MangaParser {
       if (res.data == null) return [];
       final doc = html_parser.parse(res.data);
 
-      final cardSelector = selectors['card'] as String? ?? 'div.page-item-detail, div.manga, div.bsx';
+      final cardSelector = selectors['card'] as String? ??
+          selectors['card_item'] as String? ??
+          selectors['cardItem'] as String? ??
+          'div.page-item-detail, div.manga, div.bsx, div.grid > div';
       final elements = doc.querySelectorAll(cardSelector);
 
-      final titleSelector = selectors['title'] as String? ?? '.post-title, h3, h4, h5, .tt';
-      final coverSelector = selectors['cover'] as String? ?? 'img';
-      final coverAttrs = (selectors['coverAttr'] as String?)?.split(',') ?? ['data-src', 'data-lazy-src', 'src', 'data-original'];
+      final titleSelector = selectors['title'] as String? ??
+          selectors['card_title'] as String? ??
+          selectors['cardTitle'] as String? ??
+          '.post-title, h3, h4, h5, .tt, div.line-clamp-2, div.font-black';
+      final coverSelector = selectors['cover'] as String? ??
+          selectors['card_cover'] as String? ??
+          selectors['cardCover'] as String? ??
+          'img';
+      final coverAttrs = (selectors['coverAttr'] as String? ??
+              selectors['cover_attr'] as String? ??
+              selectors['card_cover_attr'] as String? ??
+              selectors['cardCoverAttr'] as String?)
+          ?.split(',') ?? ['data-src', 'data-lazy-src', 'src', 'data-original'];
 
       final list = <Manga>[];
       for (final el in elements) {
@@ -265,16 +278,20 @@ class DynamicMangaParser extends MangaParser {
         final href = a.attributes['href'];
         if (href == null || href.isEmpty) continue;
 
-        final titleEl = el.querySelector(titleSelector);
-        final title = titleEl?.text.trim() ?? a.attributes['title']?.trim() ?? '';
+        final titleEl = el.querySelector(titleSelector) ?? el.parent?.querySelector(titleSelector);
+        var title = titleEl?.text.trim() ?? a.attributes['title']?.trim() ?? '';
+        if (title.isEmpty) {
+          final img = el.querySelector('img') ?? el.parent?.querySelector('img');
+          title = img?.attributes['alt']?.trim() ?? '';
+        }
         if (title.isEmpty) continue;
 
-        final img = el.querySelector(coverSelector);
+        final img = el.querySelector(coverSelector) ?? el.parent?.querySelector(coverSelector);
         String coverUrl = '';
         if (img != null) {
           for (final attr in coverAttrs) {
             final val = img.attributes[attr.trim()];
-            if (val != null && val.trim().isNotEmpty) {
+            if (val != null && val.trim().isNotEmpty && !val.trim().startsWith('data:')) {
               coverUrl = val.trim();
               break;
             }
@@ -374,11 +391,18 @@ class DynamicMangaParser extends MangaParser {
       final doc = html_parser.parse(res.data);
 
       final selectors = sourceConfig.selectors;
-      final descSelector = selectors?['description'] as String? ?? '.description-summary, .entry-content, .sinopsis, .entry-content-single, div.desc';
+      final descSelector = selectors?['description'] as String? ??
+          selectors?['detail_description'] as String? ??
+          selectors?['detailDescription'] as String? ??
+          '.description-summary, .entry-content, .sinopsis, .entry-content-single, div.desc, p.text-sm';
       final descEl = doc.querySelector(descSelector);
       final desc = descEl?.text.trim();
 
-      final genreSelector = selectors?['genre'] as String? ?? 'a[href*="/genres/"], a[href*="/genre/"]';
+      final genreSelector = selectors?['genre'] as String? ??
+          selectors?['genres'] as String? ??
+          selectors?['detail_genres'] as String? ??
+          selectors?['detailGenres'] as String? ??
+          'a[href*="/genres/"], a[href*="/genre/"], a[href*="/search?genre="]';
       final genres = <String>[];
       final genreLinks = doc.querySelectorAll(genreSelector);
       for (final g in genreLinks) {
@@ -465,11 +489,17 @@ class DynamicMangaParser extends MangaParser {
 
       final selectors = sourceConfig.selectors;
       final chSelector = selectors?['chapters'] as String? ??
-          'li.wp-manga-chapter a, ul.sub-chap-list a, .eph-num a, div.bxcl ul li a';
+          selectors?['chapter_item'] as String? ??
+          selectors?['chapterItem'] as String? ??
+          'li.wp-manga-chapter a, ul.sub-chap-list a, .eph-num a, div.bxcl ul li a, div#chapters a';
       final links = doc.querySelectorAll(chSelector);
       final chapters = <MangaChapter>[];
 
-      final numberRegex = RegExp(selectors?['chapterNumberRegex'] as String? ?? r'([0-9.]+)');
+      final regexPattern = selectors?['chapterNumberRegex'] as String? ??
+          selectors?['chapter_number_regex'] as String? ??
+          selectors?['chapterRegex'] as String? ??
+          r'([0-9.]+)';
+      final numberRegex = RegExp(regexPattern);
 
       for (int i = 0; i < links.length; i++) {
         final el = links[i];
@@ -478,7 +508,8 @@ class DynamicMangaParser extends MangaParser {
 
         final title = el.text.trim();
         final match = numberRegex.firstMatch(title);
-        final chNum = double.tryParse(match?.group(1) ?? '0') ?? (links.length - i).toDouble();
+        final rawNum = match != null ? (match.groupCount >= 1 ? match.group(1) : match.group(0)) : null;
+        final chNum = double.tryParse(rawNum ?? '') ?? (links.length - i).toDouble();
         final chSlug = href.split('/').where((s) => s.isNotEmpty).last;
 
         chapters.add(MangaChapter(
@@ -556,8 +587,14 @@ class DynamicMangaParser extends MangaParser {
 
       final selectors = sourceConfig.selectors;
       final pageSelector = selectors?['pages'] as String? ??
-          'div.page-break img, div.reading-content img, #readerarea img, .reader-area img';
-      final pageAttrs = (selectors?['pageAttr'] as String?)?.split(',') ??
+          selectors?['page_images'] as String? ??
+          selectors?['pageImages'] as String? ??
+          'div.page-break img, div.reading-content img, #readerarea img, .reader-area img, img.js-page';
+      final pageAttrs = (selectors?['pageAttr'] as String? ??
+              selectors?['page_attr'] as String? ??
+              selectors?['page_image_attr'] as String? ??
+              selectors?['pageImageAttr'] as String?)
+          ?.split(',') ??
           ['data-src', 'data-lazy-src', 'src', 'data-original'];
 
       final imgEls = doc.querySelectorAll(pageSelector);

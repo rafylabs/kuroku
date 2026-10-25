@@ -5,7 +5,7 @@ import '../../../core/parser/manga_parser.dart';
 import '../../../core/parser/parser_registry.dart';
 
 final activeParserProvider = StateProvider<MangaParser>((ref) {
-  return ParserRegistry.instance.defaultParser;
+  return ParserRegistry.instance.activeParser;
 });
 
 final searchQueryProvider = StateProvider<String>((ref) => '');

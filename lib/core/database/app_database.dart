@@ -74,6 +74,17 @@ class AppDatabase {
       },
       onCreate: (db, version) async {
         await db.execute('''
+          CREATE TABLE IF NOT EXISTS custom_sources (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            domain TEXT NOT NULL,
+            locale TEXT NOT NULL DEFAULT 'id',
+            type TEXT NOT NULL DEFAULT 'madara',
+            config TEXT
+          )
+        ''');
+
+        await db.execute('''
           CREATE TABLE manga (
             id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
