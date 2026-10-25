@@ -4,6 +4,7 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kuroku/core/parser/parser_registry.dart';
 import 'package:kuroku/core/parser/parser_importer.dart';
+import 'package:kuroku/core/parser/dynamic_manga_parser.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -105,6 +106,66 @@ void main() {
       expect(ParserRegistry.instance.allParsers.any((p) => p.id == 'custom_manga'), isTrue);
       // And active parser should remain Shinigami as user selected
       expect(ParserRegistry.instance.activeParser.id, 'shinigami');
+    });
+
+    test('CustomSourceConfig.fromMap handles Map, String, or raw spec safely', () {
+      // 1. String config
+      final cfg1 = CustomSourceConfig.fromMap({
+        'id': 'test_1',
+        'name': 'Test 1',
+        'domain': 'test1.com',
+        'config': '{"selectors":{"card":"div.item"}}',
+      });
+      expect(cfg1.id, 'test_1');
+      expect(cfg1.selectors?['card'], 'div.item');
+
+      // 2. Map config
+      final cfg2 = CustomSourceConfig.fromMap({
+        'id': 'test_2',
+        'name': 'Test 2',
+        'domain': 'test2.com',
+        'config': {'selectors': {'card': 'div.card'}},
+      });
+      expect(cfg2.id, 'test_2');
+      expect(cfg2.selectors?['card'], 'div.card');
+
+      // 3. Direct spec with root selectors
+      final cfg3 = CustomSourceConfig.fromMap({
+        'id': 'test_3',
+        'name': 'Test 3',
+        'domain': 'test3.com',
+        'selectors': {'card': 'div.entry'},
+      });
+      expect(cfg3.id, 'test_3');
+      expect(cfg3.selectors?['card'], 'div.entry');
+
+      // 4. Missing fields fallback cleanly
+      final cfg4 = CustomSourceConfig.fromMap({});
+      expect(cfg4.id, startsWith('custom_'));
+      expect(cfg4.name, 'Custom Source');
+      expect(cfg4.domain, '');
+    });
+
+    test('Dual-source reconciliation merges SharedPreferences backup into registry', () async {
+      SharedPreferences.setMockInitialValues({
+        'persisted_custom_sources_v1': [
+          jsonEncode({
+            'id': 'custom_sp_source',
+            'name': 'SP Source',
+            'domain': 'sp-source.com',
+            'locale': 'en',
+            'type': 'html',
+            'config': jsonEncode({'selectors': {'card': 'div.post'}}),
+          }),
+        ],
+      });
+      ParserRegistry.instance.resetForTesting();
+
+      await ParserRegistry.instance.loadCustomSources();
+      expect(ParserRegistry.instance.allParsers.any((p) => p.id == 'custom_sp_source'), isTrue);
+      final p = ParserRegistry.instance.getParser('custom_sp_source');
+      expect(p, isNotNull);
+      expect(p!.name, 'SP Source');
     });
 
     test('DynamicMangaParser parses DOM structures with flexible alias selectors', () async {

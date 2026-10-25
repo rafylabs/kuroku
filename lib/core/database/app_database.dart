@@ -71,6 +71,9 @@ class AppDatabase {
         try {
           await db.execute('ALTER TABLE chapters ADD COLUMN last_read_offset REAL DEFAULT 0.0;');
         } catch (_) {}
+        try {
+          await db.execute('ALTER TABLE custom_sources ADD COLUMN config TEXT;');
+        } catch (_) {}
       },
       onCreate: (db, version) async {
         await db.execute('''

@@ -60,18 +60,40 @@ class CustomSourceConfig {
 
   factory CustomSourceConfig.fromMap(Map<String, dynamic> map) {
     Map<String, dynamic>? selectors;
-    if (map['config'] != null && (map['config'] as String).isNotEmpty) {
-      try {
-        selectors = jsonDecode(map['config'] as String) as Map<String, dynamic>?;
-      } catch (_) {}
+    final rawConfig = map['config'];
+    if (rawConfig != null) {
+      if (rawConfig is String && rawConfig.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(rawConfig);
+          if (decoded is Map<String, dynamic>) {
+            selectors = decoded;
+          }
+        } catch (_) {}
+      } else if (rawConfig is Map<String, dynamic>) {
+        selectors = rawConfig;
+      }
     }
 
+    if (selectors == null && map.containsKey('selectors') && map['selectors'] is Map<String, dynamic>) {
+      selectors = map;
+    }
+
+    final id = map['id']?.toString() ?? 'custom_${DateTime.now().millisecondsSinceEpoch}';
+    final name = map['name']?.toString() ?? 'Custom Source';
+    final domain = (map['domain']?.toString() ?? '')
+        .replaceAll('https://', '')
+        .replaceAll('http://', '')
+        .replaceAll('/', '')
+        .trim();
+    final locale = map['locale']?.toString() ?? 'id';
+    final type = map['type']?.toString() ?? 'madara';
+
     return CustomSourceConfig(
-      id: map['id'] as String,
-      name: map['name'] as String,
-      domain: (map['domain'] as String).replaceAll('https://', '').replaceAll('http://', '').replaceAll('/', ''),
-      locale: map['locale'] as String? ?? 'id',
-      type: map['type'] as String? ?? 'madara',
+      id: id,
+      name: name,
+      domain: domain,
+      locale: locale,
+      type: type,
       customSelectors: selectors,
     );
   }

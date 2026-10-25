@@ -485,7 +485,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                     ? null
                     : () async {
                         final config = parsedConfig!;
-                        await ParserRegistry.instance.addCustomSource(config);
+                        final rawJson = textController.text.trim();
+                        await ParserRegistry.instance.addCustomSource(config, rawJson: rawJson.isNotEmpty ? rawJson : null);
                         final newParser = ParserRegistry.instance.getParser(config.id);
                         if (newParser != null) {
                           ref.read(selectedCategoryProvider.notifier).state = 'All';

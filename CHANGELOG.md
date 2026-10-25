@@ -2,6 +2,12 @@
 
 All notable changes to Kuroku (黒録) will be documented in this file.
 
+## [v1.4.2] - 2026-10-25
+### 🐛 Perbaikan Bug & Peningkatan:
+- 🔄 **Rekonsiliasi Persistensi Ganda Custom Source**: Memperbaiki pemulihan sumber kustom hasil impor agar otomatis menggabungkan (merge) data dari SQLite dan SharedPreferences pada saat startup aplikasi, mencegah sumber hilang saat aplikasi dihentikan paksa (kill task) dari app switcher.
+- 🛠️ **Migrasi Skema SQLite `custom_sources` Otomatis**: Menambahkan migrasi kolom `config` otomatis pada tabel SQLite `custom_sources` untuk perangkat yang meng-upgrade dari versi terdahulu.
+- 🛡️ **Deserialisasi Aman Konfigurasi Parser**: Parsing konfigurasi kini mendukung format objek map, JSON string, maupun spesifikasi deklaratif langsung tanpa risiko runtime type cast error.
+
 ## [v1.4.1] - 2026-10-25
 ### 🐛 Perbaikan Bug & Peningkatan:
 - 💾 **Persistensi Ganda Custom Source**: Sumber kustom yang ditambahkan kini tersimpan permanen menggunakan sistem dual-persistence (SQLite + backup SharedPreferences) sehingga tidak hilang saat aplikasi ditutup atau di-restart.

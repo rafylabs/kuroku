@@ -74,40 +74,52 @@ class ParserRegistry {
         _weebCentral.setCustomDomain(weebCentralDomain);
       }
 
-      // 1. Load user custom sources from local SQLite database
-      List<CustomSourceConfig> customConfigs = [];
+      // 1. Dual-source reconciliation: gather configs from both SQLite and SharedPreferences
+      final Map<String, CustomSourceConfig> mergedConfigs = {};
+
+      // Load from SQLite
       try {
-        customConfigs = await AppDatabase.instance.getCustomSources();
+        final sqliteConfigs = await AppDatabase.instance.getCustomSources();
+        for (final cfg in sqliteConfigs) {
+          if (cfg.id.isNotEmpty) {
+            mergedConfigs[cfg.id] = cfg;
+          }
+        }
       } catch (_) {}
 
-      // 2. Fallback to SharedPreferences backup if SQLite returned empty
-      if (customConfigs.isEmpty) {
+      // Load from SharedPreferences backup
+      try {
         final backupList = prefs.getStringList(_kCustomSourcesBackupKey) ?? [];
         for (final item in backupList) {
           try {
-            final map = jsonDecode(item) as Map<String, dynamic>;
-            customConfigs.add(CustomSourceConfig.fromMap(map));
+            final decoded = jsonDecode(item);
+            if (decoded is Map<String, dynamic>) {
+              final cfg = CustomSourceConfig.fromMap(decoded);
+              if (cfg.id.isNotEmpty) {
+                // If not in SQLite, or backup has selectors while SQLite version doesn't, prefer backup
+                final existing = mergedConfigs[cfg.id];
+                if (existing == null || (existing.customSelectors == null && cfg.customSelectors != null)) {
+                  mergedConfigs[cfg.id] = cfg;
+                }
+              }
+            }
           } catch (_) {}
         }
-        // Resync restored configs back to SQLite
-        for (final cfg in customConfigs) {
-          try {
-            await AppDatabase.instance.upsertCustomSource(cfg);
-          } catch (_) {}
-        }
-      }
+      } catch (_) {}
 
-      // 3. Register all discovered custom sources
-      for (final cfg in customConfigs) {
+      // 2. Register all merged custom sources into memory
+      for (final cfg in mergedConfigs.values) {
         try {
           _register(DynamicMangaParser(cfg));
+          // Self-heal SQLite database with latest merged config
+          await AppDatabase.instance.upsertCustomSource(cfg);
         } catch (_) {}
       }
 
-      // 4. Ensure SharedPreferences backup is always in sync
+      // 3. Keep SharedPreferences backup 100% synchronized with active memory state
       await _syncCustomSourcesBackup(prefs);
 
-      // 5. Restore active parser choice
+      // 4. Restore active parser choice
       final savedActiveId = prefs.getString(_kActiveParserKey);
       if (savedActiveId != null && _parsers.containsKey(savedActiveId)) {
         _activeParserId = savedActiveId;
@@ -157,11 +169,24 @@ class ParserRegistry {
     }
   }
 
-  Future<void> addCustomSource(CustomSourceConfig config) async {
+  Future<void> addCustomSource(CustomSourceConfig config, {String? rawJson}) async {
+    CustomSourceConfig finalConfig = config;
+    if (rawJson != null && rawJson.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawJson);
+        if (decoded is Map<String, dynamic>) {
+          finalConfig = CustomSourceConfig.fromMap({
+            ...config.toMap(),
+            'config': rawJson,
+          });
+        }
+      } catch (_) {}
+    }
+
     try {
-      await AppDatabase.instance.upsertCustomSource(config);
+      await AppDatabase.instance.upsertCustomSource(finalConfig);
     } catch (_) {}
-    _register(DynamicMangaParser(config));
+    _register(DynamicMangaParser(finalConfig));
     await _syncCustomSourcesBackup();
   }
 
@@ -180,13 +205,13 @@ class ParserRegistry {
 
   Future<CustomSourceConfig> importParserFromJson(String jsonStr) async {
     final config = ParserImporter.fromJsonString(jsonStr);
-    await addCustomSource(config);
+    await addCustomSource(config, rawJson: jsonStr);
     return config;
   }
 
   Future<CustomSourceConfig> importParserFromUrl(String url) async {
     final config = await ParserImporter.fetchFromUrl(url);
-    await addCustomSource(config);
+    await addCustomSource(config, rawJson: ParserImporter.exportToJson(config));
     return config;
   }
 
