@@ -5,6 +5,8 @@ import 'dynamic_manga_parser.dart';
 import 'parsers/shinigami_parser.dart';
 import 'parsers/weebcentral_parser.dart';
 
+import 'parser_importer.dart';
+
 class ParserRegistry {
   static final ParserRegistry instance = ParserRegistry._internal();
 
@@ -87,6 +89,27 @@ class ParserRegistry {
   Future<void> removeCustomSource(String id) async {
     await AppDatabase.instance.deleteCustomSource(id);
     _parsers.remove(id);
+  }
+
+  Future<CustomSourceConfig> importParserFromJson(String jsonStr) async {
+    final config = ParserImporter.fromJsonString(jsonStr);
+    await addCustomSource(config);
+    return config;
+  }
+
+  Future<CustomSourceConfig> importParserFromUrl(String url) async {
+    final config = await ParserImporter.fetchFromUrl(url);
+    await addCustomSource(config);
+    return config;
+  }
+
+  Future<String?> exportParserToJson(String id) async {
+    final customConfigs = await AppDatabase.instance.getCustomSources();
+    final target = customConfigs.where((c) => c.id == id).firstOrNull;
+    if (target != null) {
+      return ParserImporter.exportToJson(target);
+    }
+    return null;
   }
 
   List<MangaParser> get allParsers => _parsers.values.toList();

@@ -12,7 +12,7 @@ class CustomSourceConfig {
   final String name;
   final String domain;
   final String locale;
-  final String type; // 'madara', 'themesia', 'json'
+  final String type; // 'madara', 'themesia', 'html', 'rest', 'json_api'
   final Map<String, dynamic>? customSelectors;
 
   const CustomSourceConfig({
@@ -23,6 +23,29 @@ class CustomSourceConfig {
     this.type = 'madara',
     this.customSelectors,
   });
+
+  Map<String, String>? get customHeaders {
+    final raw = customSelectors?['headers'];
+    if (raw is Map) {
+      return raw.map((k, v) => MapEntry(k.toString(), v.toString()));
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? get urls {
+    final raw = customSelectors?['urls'];
+    return raw is Map<String, dynamic> ? raw : null;
+  }
+
+  Map<String, dynamic>? get selectors {
+    final raw = customSelectors?['selectors'];
+    return raw is Map<String, dynamic> ? raw : null;
+  }
+
+  Map<String, dynamic>? get api {
+    final raw = customSelectors?['api'];
+    return raw is Map<String, dynamic> ? raw : null;
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -72,10 +95,46 @@ class DynamicMangaParser extends MangaParser {
   String get locale => sourceConfig.locale;
 
   @override
-  Map<String, String> get headers => {
-    'Referer': 'https://$domain/',
-    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
-  };
+  Map<String, String> get headers {
+    final defaultHeaders = {
+      'Referer': 'https://$domain/',
+      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
+    };
+    if (sourceConfig.customHeaders != null) {
+      defaultHeaders.addAll(sourceConfig.customHeaders!);
+    }
+    return defaultHeaders;
+  }
+
+  String _formatUrl(String template, {int page = 1, String? query, String? mangaId, String? chapterId}) {
+    return template
+        .replaceAll('{domain}', domain)
+        .replaceAll('{page}', page.toString())
+        .replaceAll('{query}', query != null ? Uri.encodeComponent(query.trim()) : '')
+        .replaceAll('{manga_id}', mangaId ?? '')
+        .replaceAll('{chapter_id}', chapterId ?? '');
+  }
+
+  dynamic _traverseJson(dynamic current, String path) {
+    if (path.isEmpty || current == null) return current;
+    final keys = path.split('.');
+    dynamic value = current;
+    for (final key in keys) {
+      if (value is Map && value.containsKey(key)) {
+        value = value[key];
+      } else if (value is List && int.tryParse(key) != null) {
+        final idx = int.parse(key);
+        if (idx >= 0 && idx < value.length) {
+          value = value[idx];
+        } else {
+          return null;
+        }
+      } else {
+        return null;
+      }
+    }
+    return value;
+  }
 
   @override
   Future<List<Manga>> getList({
@@ -86,13 +145,167 @@ class DynamicMangaParser extends MangaParser {
     List<String>? genres,
     String? category,
   }) async {
+    final type = sourceConfig.type.toLowerCase();
+
+    // 1. REST API Parser
+    if (type == 'rest' || type == 'json_api') {
+      return _getListRest(page: page, query: query);
+    }
+
+    // 2. Custom HTML Selector Parser
+    if (type == 'html' || sourceConfig.selectors != null) {
+      return _getListHtml(page: page, query: query);
+    }
+
+    // 3. Fallback: Legacy Themesia / Madara
+    return _getListLegacy(page: page, query: query);
+  }
+
+  Future<List<Manga>> _getListRest({required int page, String? query}) async {
+    try {
+      final api = sourceConfig.api ?? {};
+      final isSearch = query != null && query.trim().isNotEmpty;
+      final endpointTemplate = isSearch
+          ? (api['searchEndpoint'] as String? ?? api['listEndpoint'] as String?)
+          : (api['listEndpoint'] as String?);
+
+      if (endpointTemplate == null) return [];
+
+      final url = _formatUrl(endpointTemplate, page: page, query: query);
+      final res = await KurokuHttpClient.instance.get<dynamic>(
+        url,
+        headers: headers,
+        responseType: ResponseType.json,
+      );
+
+      dynamic rawData = res.data;
+      if (rawData is String) {
+        rawData = jsonDecode(rawData);
+      }
+
+      final listPath = api['listPath'] as String? ?? 'data';
+      final rawList = _traverseJson(rawData, listPath);
+      if (rawList is! List) return [];
+
+      final idKey = api['idKey'] as String? ?? 'id';
+      final titleKey = api['titleKey'] as String? ?? 'title';
+      final coverKey = api['coverKey'] as String? ?? 'cover';
+      final urlKey = api['urlKey'] as String?;
+
+      final list = <Manga>[];
+      for (final item in rawList) {
+        if (item is! Map) continue;
+        final rawItemId = item[idKey]?.toString() ?? '';
+        final title = item[titleKey]?.toString().trim() ?? '';
+        if (rawItemId.isEmpty || title.isEmpty) continue;
+
+        final rawCover = item[coverKey]?.toString().trim() ?? '';
+        final coverUrl = rawCover.startsWith('http')
+            ? rawCover
+            : (rawCover.isNotEmpty ? 'https://$domain/$rawCover' : '');
+
+        final mangaUrl = urlKey != null && item[urlKey] != null
+            ? item[urlKey].toString()
+            : 'https://$domain/manga/$rawItemId';
+
+        list.add(Manga(
+          id: '${id}_$rawItemId',
+          title: title,
+          url: mangaUrl,
+          coverUrl: coverUrl,
+          sourceId: id,
+          status: MangaStatus.ongoing,
+        ));
+      }
+
+      return list;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<Manga>> _getListHtml({required int page, String? query}) async {
+    try {
+      final urls = sourceConfig.urls;
+      final selectors = sourceConfig.selectors ?? {};
+      final isSearch = query != null && query.trim().isNotEmpty;
+
+      String url;
+      if (isSearch && urls != null && urls['search'] != null) {
+        url = _formatUrl(urls['search'] as String, page: page, query: query);
+      } else if (urls != null && urls['list'] != null) {
+        url = _formatUrl(urls['list'] as String, page: page, query: query);
+      } else {
+        url = isSearch
+            ? 'https://$domain/?s=${Uri.encodeComponent(query.trim())}'
+            : 'https://$domain/manga?page=$page';
+      }
+
+      final res = await KurokuHttpClient.instance.get<String>(
+        url,
+        headers: headers,
+        responseType: ResponseType.plain,
+      );
+
+      if (res.data == null) return [];
+      final doc = html_parser.parse(res.data);
+
+      final cardSelector = selectors['card'] as String? ?? 'div.page-item-detail, div.manga, div.bsx';
+      final elements = doc.querySelectorAll(cardSelector);
+
+      final titleSelector = selectors['title'] as String? ?? '.post-title, h3, h4, h5, .tt';
+      final coverSelector = selectors['cover'] as String? ?? 'img';
+      final coverAttrs = (selectors['coverAttr'] as String?)?.split(',') ?? ['data-src', 'data-lazy-src', 'src', 'data-original'];
+
+      final list = <Manga>[];
+      for (final el in elements) {
+        final a = el.localName == 'a' ? el : el.querySelector('a');
+        if (a == null) continue;
+
+        final href = a.attributes['href'];
+        if (href == null || href.isEmpty) continue;
+
+        final titleEl = el.querySelector(titleSelector);
+        final title = titleEl?.text.trim() ?? a.attributes['title']?.trim() ?? '';
+        if (title.isEmpty) continue;
+
+        final img = el.querySelector(coverSelector);
+        String coverUrl = '';
+        if (img != null) {
+          for (final attr in coverAttrs) {
+            final val = img.attributes[attr.trim()];
+            if (val != null && val.trim().isNotEmpty) {
+              coverUrl = val.trim();
+              break;
+            }
+          }
+        }
+
+        final cleanSlug = href.split('/').where((s) => s.isNotEmpty).last;
+
+        list.add(Manga(
+          id: '${id}_$cleanSlug',
+          title: title,
+          url: href.startsWith('http') ? href : 'https://$domain$href',
+          coverUrl: coverUrl.startsWith('http') ? coverUrl : (coverUrl.isNotEmpty ? 'https://$domain$coverUrl' : ''),
+          sourceId: id,
+          status: MangaStatus.ongoing,
+        ));
+      }
+
+      return list;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<Manga>> _getListLegacy({required int page, String? query}) async {
     String url;
     if (sourceConfig.type == 'themesia') {
       url = query != null && query.trim().isNotEmpty
           ? 'https://$domain/?s=${Uri.encodeComponent(query.trim())}'
           : 'https://$domain/manga/?page=$page&order=update';
     } else {
-      // Default: Madara (WordPress)
       url = query != null && query.trim().isNotEmpty
           ? 'https://$domain/?s=${Uri.encodeComponent(query.trim())}&post_type=wp-manga'
           : 'https://$domain/manga/page/$page/?m_orderby=latest';
@@ -160,11 +373,14 @@ class DynamicMangaParser extends MangaParser {
       if (res.data == null) return manga;
       final doc = html_parser.parse(res.data);
 
-      final descEl = doc.querySelector('.description-summary, .entry-content, .sinopsis, .entry-content-single');
+      final selectors = sourceConfig.selectors;
+      final descSelector = selectors?['description'] as String? ?? '.description-summary, .entry-content, .sinopsis, .entry-content-single, div.desc';
+      final descEl = doc.querySelector(descSelector);
       final desc = descEl?.text.trim();
 
+      final genreSelector = selectors?['genre'] as String? ?? 'a[href*="/genres/"], a[href*="/genre/"]';
       final genres = <String>[];
-      final genreLinks = doc.querySelectorAll('a[href*="/genres/"], a[href*="/genre/"]');
+      final genreLinks = doc.querySelectorAll(genreSelector);
       for (final g in genreLinks) {
         final text = g.text.trim();
         if (text.isNotEmpty && !genres.contains(text)) {
@@ -183,6 +399,60 @@ class DynamicMangaParser extends MangaParser {
 
   @override
   Future<List<MangaChapter>> getChapters(Manga manga) async {
+    final type = sourceConfig.type.toLowerCase();
+
+    // 1. REST API Chapters
+    if (type == 'rest' || type == 'json_api') {
+      final api = sourceConfig.api;
+      if (api != null && api['chaptersEndpoint'] != null) {
+        try {
+          final cleanMangaId = manga.id.replaceFirst('${id}_', '');
+          final url = _formatUrl(api['chaptersEndpoint'] as String, mangaId: cleanMangaId);
+          final res = await KurokuHttpClient.instance.get<dynamic>(
+            url,
+            headers: headers,
+            responseType: ResponseType.json,
+          );
+
+          dynamic rawData = res.data;
+          if (rawData is String) rawData = jsonDecode(rawData);
+
+          final chaptersPath = api['chaptersPath'] as String? ?? 'data';
+          final rawList = _traverseJson(rawData, chaptersPath);
+          if (rawList is List) {
+            final chIdKey = api['chapterIdKey'] as String? ?? 'id';
+            final chTitleKey = api['chapterTitleKey'] as String? ?? 'title';
+            final chNumberKey = api['chapterNumberKey'] as String? ?? 'chapter_number';
+            final chUrlKey = api['chapterUrlKey'] as String?;
+
+            final chapters = <MangaChapter>[];
+            for (final ch in rawList) {
+              if (ch is! Map) continue;
+              final chId = ch[chIdKey]?.toString() ?? '';
+              if (chId.isEmpty) continue;
+
+              final title = ch[chTitleKey]?.toString().trim() ?? 'Chapter $chId';
+              final chNum = double.tryParse(ch[chNumberKey]?.toString() ?? '') ?? 0.0;
+              final chUrl = chUrlKey != null && ch[chUrlKey] != null
+                  ? ch[chUrlKey].toString()
+                  : 'https://$domain/chapter/$chId';
+
+              chapters.add(MangaChapter(
+                id: '${id}_${manga.id}_$chId',
+                mangaId: manga.id,
+                title: title,
+                number: chNum,
+                url: chUrl,
+              ));
+            }
+            chapters.sort((a, b) => b.number.compareTo(a.number));
+            return chapters;
+          }
+        } catch (_) {}
+      }
+    }
+
+    // 2. Custom HTML Selector / Legacy Chapters
     try {
       final res = await KurokuHttpClient.instance.get<String>(
         manga.url,
@@ -193,8 +463,13 @@ class DynamicMangaParser extends MangaParser {
       if (res.data == null) return [];
       final doc = html_parser.parse(res.data);
 
-      final links = doc.querySelectorAll('li.wp-manga-chapter a, ul.sub-chap-list a, .eph-num a, div.bxcl ul li a');
+      final selectors = sourceConfig.selectors;
+      final chSelector = selectors?['chapters'] as String? ??
+          'li.wp-manga-chapter a, ul.sub-chap-list a, .eph-num a, div.bxcl ul li a';
+      final links = doc.querySelectorAll(chSelector);
       final chapters = <MangaChapter>[];
+
+      final numberRegex = RegExp(selectors?['chapterNumberRegex'] as String? ?? r'([0-9.]+)');
 
       for (int i = 0; i < links.length; i++) {
         final el = links[i];
@@ -202,7 +477,7 @@ class DynamicMangaParser extends MangaParser {
         if (href == null || href.isEmpty) continue;
 
         final title = el.text.trim();
-        final match = RegExp(r'([0-9.]+)').firstMatch(title);
+        final match = numberRegex.firstMatch(title);
         final chNum = double.tryParse(match?.group(1) ?? '0') ?? (links.length - i).toDouble();
         final chSlug = href.split('/').where((s) => s.isNotEmpty).last;
 
@@ -224,6 +499,51 @@ class DynamicMangaParser extends MangaParser {
 
   @override
   Future<List<MangaPage>> getPages(MangaChapter chapter) async {
+    final type = sourceConfig.type.toLowerCase();
+
+    // 1. REST API Pages
+    if (type == 'rest' || type == 'json_api') {
+      final api = sourceConfig.api;
+      if (api != null && api['pagesEndpoint'] != null) {
+        try {
+          final cleanChapterId = chapter.id.split('_').last;
+          final url = _formatUrl(api['pagesEndpoint'] as String, chapterId: cleanChapterId);
+          final res = await KurokuHttpClient.instance.get<dynamic>(
+            url,
+            headers: headers,
+            responseType: ResponseType.json,
+          );
+
+          dynamic rawData = res.data;
+          if (rawData is String) rawData = jsonDecode(rawData);
+
+          final pagesPath = api['pagesPath'] as String? ?? 'data';
+          final rawList = _traverseJson(rawData, pagesPath);
+          if (rawList is List) {
+            final pageUrlKey = api['pageUrlKey'] as String? ?? 'url';
+            final pages = <MangaPage>[];
+            for (int i = 0; i < rawList.length; i++) {
+              final p = rawList[i];
+              final rawUrl = p is Map ? p[pageUrlKey]?.toString() : p?.toString();
+              if (rawUrl == null || rawUrl.trim().isEmpty) continue;
+
+              final imgUrl = rawUrl.trim().startsWith('http')
+                  ? rawUrl.trim()
+                  : 'https://$domain${rawUrl.trim()}';
+
+              pages.add(MangaPage(
+                index: i,
+                url: imgUrl,
+                headers: headers,
+              ));
+            }
+            return pages;
+          }
+        } catch (_) {}
+      }
+    }
+
+    // 2. Custom HTML Selector / Legacy Pages
     try {
       final res = await KurokuHttpClient.instance.get<String>(
         chapter.url,
@@ -234,20 +554,31 @@ class DynamicMangaParser extends MangaParser {
       if (res.data == null) return [];
       final doc = html_parser.parse(res.data);
 
-      final imgEls = doc.querySelectorAll('div.page-break img, div.reading-content img, #readerarea img, .reader-area img');
+      final selectors = sourceConfig.selectors;
+      final pageSelector = selectors?['pages'] as String? ??
+          'div.page-break img, div.reading-content img, #readerarea img, .reader-area img';
+      final pageAttrs = (selectors?['pageAttr'] as String?)?.split(',') ??
+          ['data-src', 'data-lazy-src', 'src', 'data-original'];
+
+      final imgEls = doc.querySelectorAll(pageSelector);
       final pages = <MangaPage>[];
 
       for (int i = 0; i < imgEls.length; i++) {
         final el = imgEls[i];
-        final src = el.attributes['data-src'] ??
-            el.attributes['data-lazy-src'] ??
-            el.attributes['src'];
+        String? src;
+        for (final attr in pageAttrs) {
+          final val = el.attributes[attr.trim()];
+          if (val != null && val.trim().isNotEmpty) {
+            src = val.trim();
+            break;
+          }
+        }
 
         if (src == null || src.isEmpty) continue;
 
         pages.add(MangaPage(
           index: i,
-          url: src.trim().startsWith('http') ? src.trim() : 'https://$domain${src.trim()}',
+          url: src.startsWith('http') ? src : 'https://$domain$src',
           headers: headers,
         ));
       }
