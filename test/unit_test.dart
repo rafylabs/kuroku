@@ -85,9 +85,15 @@ void main() {
       final registry = ParserRegistry.instance;
       final parsers = registry.allParsers;
 
-      expect(parsers.length, greaterThanOrEqualTo(2));
+      expect(parsers.length, greaterThanOrEqualTo(3));
+      expect(parsers.any((p) => p.id == 'mangapill'), isTrue);
       expect(parsers.any((p) => p.id == 'shinigami'), isTrue);
       expect(parsers.any((p) => p.id == 'weebcentral'), isTrue);
+      expect(registry.defaultParser.id, 'mangapill');
+
+      final mangapill = registry.getParser('mangapill');
+      expect(mangapill, isNotNull);
+      expect(mangapill!.domain, 'mangapill.com');
 
       final shinigami = registry.getParser('shinigami');
       expect(shinigami, isNotNull);

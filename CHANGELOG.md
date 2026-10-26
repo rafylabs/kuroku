@@ -2,6 +2,12 @@
 
 All notable changes to Kuroku (黒録) will be documented in this file.
 
+## [v1.4.4] - 2026-10-26
+### ⚡ Pembaruan Sumber & Penyederhanaan:
+- 🚀 **Sumber Bawaan Utama Baru**: Mengintegrasikan parser bawaan baru berkecepatan tinggi sebagai sumber default aplikasi dengan navigasi katalog instan dan paginasi stabil.
+- 🧹 **Penyederhanaan Antarmuka Sumber**: Membersihkan form dan dialog impor kustom agar antarmuka pemilih sumber lebih ringkas, responsif, dan bebas hambatan.
+- 🔄 **Dukungan Kompatibilitas Riwayat**: Menjamin seluruh riwayat bacaan dan bookmark dari sumber lama tetap terpetakan secara otomatis tanpa kehilangan progres baca.
+
 ## [v1.4.3] - 2026-10-26
 ### 🐛 Perbaikan Bug & Peningkatan:
 - 🛡️ **Proteksi Timpa Cadangan Cold Boot (Custom Sources)**: Menambahkan guard proteksi penulisan SharedPreferences agar startup cold boot tidak menimpa file preferensi dengan list kosong saat database SQLite sedang dalam proses inisialisasi awal.

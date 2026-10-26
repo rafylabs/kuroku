@@ -7,21 +7,27 @@ import '../../network/http_client.dart';
 import '../manga_parser.dart';
 
 class MangaPillParser extends MangaParser {
+  String? _customDomain;
+
+  void setCustomDomain(String newDomain) {
+    _customDomain = newDomain.replaceAll('https://', '').replaceAll('http://', '').replaceAll('/', '').trim();
+  }
+
   @override
   String get id => 'mangapill';
 
   @override
-  String get name => 'MangaPill';
+  String get name => 'MangaPill (EN)';
 
   @override
-  String get domain => 'mangapill.com';
+  String get domain => _customDomain ?? 'mangapill.com';
 
   @override
   String get locale => 'en';
 
   @override
   Map<String, String> get headers => {
-    'Referer': 'https://mangapill.com/',
+    'Referer': 'https://$domain/',
     'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
   };
 

@@ -1,202 +1,85 @@
-import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kuroku/core/parser/parser_registry.dart';
 import 'package:kuroku/core/parser/parser_importer.dart';
-import 'package:kuroku/core/parser/dynamic_manga_parser.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('Parser Persistence & Dynamic Selector Tests', () {
-    test('Custom source dual-persistence in SharedPreferences', () async {
+  group('Parser Persistence & Default Parser Architecture Tests', () {
+    test('Default source is registered as default parser in ParserRegistry', () async {
       SharedPreferences.setMockInitialValues({});
+      ParserRegistry.instance.resetForTesting();
+
+      // App initial load
+      await ParserRegistry.instance.loadCustomSources();
+
+      // Default parser is mangapill
+      expect(ParserRegistry.instance.defaultParser.id, 'mangapill');
+      expect(ParserRegistry.instance.activeParser.id, 'mangapill');
+
+      // 3 built-in parsers registered
+      final parsers = ParserRegistry.instance.allParsers;
+      expect(parsers.length, 3);
+      final ids = parsers.map((p) => p.id).toList();
+      expect(ids, containsAll(['mangapill', 'shinigami', 'weebcentral']));
+    });
+
+    test('Active parser selection and domain overrides persist across app restart', () async {
+      SharedPreferences.setMockInitialValues({});
+      ParserRegistry.instance.resetForTesting();
       final prefs = await SharedPreferences.getInstance();
 
-      final jsonStr = '''{
-        "spec_version": 1,
-        "id": "custom_feed",
-        "name": "Custom Feed",
-        "domain": "example-source.com",
-        "locale": "en",
-        "type": "html",
-        "selectors": {
-          "card": "div.grid > div",
-          "title": "div.line-clamp-2",
-          "cover": "img",
-          "chapters": "div#chapters a",
-          "pages": "img.js-page"
-        }
-      }''';
-
-      final config = ParserImporter.fromJsonString(jsonStr);
-      await ParserRegistry.instance.addCustomSource(config);
-
-      // Verify registered
-      final registered = ParserRegistry.instance.getParser(config.id);
-      expect(registered, isNotNull);
-      expect(registered!.name, 'Custom Feed');
-
-      // Verify persisted to SharedPreferences backup
-      final backup = prefs.getStringList('persisted_custom_sources_v1');
-      expect(backup, isNotNull);
-      expect(backup!.length, 1);
-      final decodedMap = jsonDecode(backup.first) as Map<String, dynamic>;
-      expect(decodedMap['id'], 'custom_feed');
-
-      // Verify active parser save & restore
-      await ParserRegistry.instance.setActiveParserId(config.id);
-      expect(ParserRegistry.instance.activeParser.id, 'custom_feed');
-      expect(prefs.getString('kuroku_active_parser_id'), 'custom_feed');
-
-      // Simulate app restart: re-run loadCustomSources() with SharedPreferences
+      // 1. Initial load
       await ParserRegistry.instance.loadCustomSources();
-      expect(ParserRegistry.instance.getParser('custom_feed'), isNotNull);
-      expect(ParserRegistry.instance.activeParser.id, 'custom_feed');
-    });
+      expect(ParserRegistry.instance.activeParser.id, 'mangapill');
 
-    test('User lifecycle scenario: add custom source -> switch to default -> restart app -> verify persisted', () async {
-      SharedPreferences.setMockInitialValues({});
+      // 2. User switches active parser to weebcentral
+      await ParserRegistry.instance.setActiveParserId('weebcentral');
+      expect(ParserRegistry.instance.activeParser.id, 'weebcentral');
+      expect(prefs.getString('kuroku_active_parser_id'), 'weebcentral');
+
+      // 3. User updates custom domain
+      await ParserRegistry.instance.updateSourceDomain('mangapill', 'mirror.mangapill.com');
+      expect(prefs.getString('domain_mangapill'), 'mirror.mangapill.com');
+      expect(ParserRegistry.instance.getParser('mangapill')!.domain, 'mirror.mangapill.com');
+
+      // 4. Simulate app restart
       ParserRegistry.instance.resetForTesting();
-
-      // 1. App starts initially
-      await ParserRegistry.instance.loadCustomSources();
-      expect(ParserRegistry.instance.allParsers.length, 2);
-
-      // 2. User adds custom source
-      final jsonStr = '''{
-        "spec_version": 1,
-        "id": "custom_manga",
-        "name": "Custom Manga",
-        "domain": "example.com",
-        "locale": "en",
-        "type": "html",
-        "selectors": {
-          "card": "div.grid > div",
-          "title": "div.title",
-          "cover": "img",
-          "chapters": "a.chap",
-          "pages": "img.page"
-        }
-      }''';
-
-      final config = ParserImporter.fromJsonString(jsonStr);
-      await ParserRegistry.instance.addCustomSource(config);
-      await ParserRegistry.instance.setActiveParserId(config.id);
-
-      expect(ParserRegistry.instance.allParsers.length, 3);
-      expect(ParserRegistry.instance.activeParser.id, 'custom_manga');
-
-      // 3. User switches to default source Shinigami
-      await ParserRegistry.instance.setActiveParserId('shinigami');
-      expect(ParserRegistry.instance.activeParser.id, 'shinigami');
-      expect(ParserRegistry.instance.allParsers.any((p) => p.id == 'custom_manga'), isTrue);
-
-      // 4. User terminates app (process killed, memory cleared)
-      ParserRegistry.instance.resetForTesting();
-      expect(ParserRegistry.instance.allParsers.length, 2); // only built-ins in fresh memory
-      expect(ParserRegistry.instance.allParsers.any((p) => p.id == 'custom_manga'), isFalse);
-
-      // 5. User re-opens app (main() executes loadCustomSources())
       await ParserRegistry.instance.loadCustomSources();
 
-      // 6. Verification: custom source MUST still be present in allParsers
-      expect(ParserRegistry.instance.allParsers.length, 3);
-      expect(ParserRegistry.instance.allParsers.any((p) => p.id == 'custom_manga'), isTrue);
-      // And active parser should remain Shinigami as user selected
-      expect(ParserRegistry.instance.activeParser.id, 'shinigami');
+      // Active parser restored to weebcentral
+      expect(ParserRegistry.instance.activeParser.id, 'weebcentral');
+
+      // Overridden domain restored
+      expect(ParserRegistry.instance.getParser('mangapill')!.domain, 'mirror.mangapill.com');
     });
 
-    test('CustomSourceConfig.fromMap handles Map, String, or raw spec safely', () {
-      // 1. String config
-      final cfg1 = CustomSourceConfig.fromMap({
-        'id': 'test_1',
-        'name': 'Test 1',
-        'domain': 'test1.com',
-        'config': '{"selectors":{"card":"div.item"}}',
-      });
-      expect(cfg1.id, 'test_1');
-      expect(cfg1.selectors?['card'], 'div.item');
-
-      // 2. Map config
-      final cfg2 = CustomSourceConfig.fromMap({
-        'id': 'test_2',
-        'name': 'Test 2',
-        'domain': 'test2.com',
-        'config': {'selectors': {'card': 'div.card'}},
-      });
-      expect(cfg2.id, 'test_2');
-      expect(cfg2.selectors?['card'], 'div.card');
-
-      // 3. Direct spec with root selectors
-      final cfg3 = CustomSourceConfig.fromMap({
-        'id': 'test_3',
-        'name': 'Test 3',
-        'domain': 'test3.com',
-        'selectors': {'card': 'div.entry'},
-      });
-      expect(cfg3.id, 'test_3');
-      expect(cfg3.selectors?['card'], 'div.entry');
-
-      // 4. Missing fields fallback cleanly
-      final cfg4 = CustomSourceConfig.fromMap({});
-      expect(cfg4.id, startsWith('custom_'));
-      expect(cfg4.name, 'Custom Source');
-      expect(cfg4.domain, '');
+    test('Legacy custom source ID mapping (custom_mangapill -> mangapill)', () {
+      final parser = ParserRegistry.instance.getParser('custom_mangapill');
+      expect(parser, isNotNull);
+      expect(parser!.id, 'mangapill');
     });
 
-    test('Dual-source reconciliation merges SharedPreferences backup into registry', () async {
-      SharedPreferences.setMockInitialValues({
-        'persisted_custom_sources_v1': [
-          jsonEncode({
-            'id': 'custom_sp_source',
-            'name': 'SP Source',
-            'domain': 'sp-source.com',
-            'locale': 'en',
-            'type': 'html',
-            'config': jsonEncode({'selectors': {'card': 'div.post'}}),
-          }),
-        ],
-      });
-      ParserRegistry.instance.resetForTesting();
-
-      await ParserRegistry.instance.loadCustomSources();
-      expect(ParserRegistry.instance.allParsers.any((p) => p.id == 'custom_sp_source'), isTrue);
-      final p = ParserRegistry.instance.getParser('custom_sp_source');
-      expect(p, isNotNull);
-      expect(p!.name, 'SP Source');
-    });
-
-    test('DynamicMangaParser parses DOM structures with flexible alias selectors', () async {
+    test('HTML selector and regex extraction logic compatibility', () {
       const listHtml = '''
         <div class="container">
           <div class="grid">
             <div>
-              <a href="/manga/1/sample-series" class="relative block">
-                <figure class="w-full h-52 overflow-hidden bg-card rounded-md">
-                  <img data-src="https://cdn.example.com/cover/1.jpeg" alt="Sample Series" class="lazy object-cover"/>
-                </figure>
+              <a href="/manga/1/sample-series">
+                <img data-src="https://cdn.example.com/cover/1.jpeg" alt="Cover" />
               </a>
-              <div class="flex flex-col justify-end">
-                <a href="/manga/1/sample-series" class="mb-2">
-                  <div class="mt-3 font-black leading-tight line-clamp-2">Sample Series</div>
-                </a>
-              </div>
+              <div class="mt-3 font-black">Sample Series</div>
             </div>
           </div>
         </div>
       ''';
 
       const detailHtml = '''
-        <div class="container">
-          <p class="text-sm">Sample synopsis description...</p>
-          <a href="/search?genre=Action">Action</a>
-          <a href="/search?genre=Fantasy">Fantasy</a>
-          <div id="chapters" class="p-3">
-            <a href="/chapters/1-20386000/sample-chapter-386" title=" Group 2 Chapter 386">Group 2 Chapter 386</a>
-            <a href="/chapters/1-20385000/sample-chapter-385" title=" Group 2 Chapter 385">Group 2 Chapter 385</a>
-          </div>
+        <div id="chapters">
+          <a href="/chapters/1-10001/sample-series-chapter-386">Chapter 386</a>
+          <a href="/chapters/1-10002/sample-series-chapter-385">Chapter 385</a>
         </div>
       ''';
 
