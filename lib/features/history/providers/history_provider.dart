@@ -209,15 +209,31 @@ class HistoryNotifier extends StateNotifier<AsyncValue<UnifiedHistoryData>> {
   }
 
   Future<void> deleteItem(UnifiedHistoryItem item) async {
-    if (item.isUpdate) {
-      if (item.updateEntry != null) {
-        final db = await AppDatabase.instance.database;
-        await db.delete('chapter_updates', where: 'id = ?', whereArgs: [item.updateEntry!.id]);
+    await deleteItems([item]);
+  }
+
+  Future<void> deleteItems(List<UnifiedHistoryItem> items) async {
+    if (items.isEmpty) return;
+    final readEntries = <({String mangaId, String chapterId})>[];
+    final updateIds = <String>[];
+
+    for (final item in items) {
+      if (item.isUpdate) {
+        if (item.updateEntry != null) {
+          updateIds.add(item.updateEntry!.id);
+        }
+      } else {
+        if (item.readEntry != null) {
+          readEntries.add((mangaId: item.mangaId, chapterId: item.chapterId));
+        }
       }
-    } else {
-      if (item.readEntry != null) {
-        await AppDatabase.instance.deleteHistoryEntry(item.mangaId, item.chapterId);
-      }
+    }
+
+    if (readEntries.isNotEmpty) {
+      await AppDatabase.instance.deleteHistoryEntries(readEntries);
+    }
+    if (updateIds.isNotEmpty) {
+      await AppDatabase.instance.deleteUpdateEntries(updateIds);
     }
     await loadHistory();
   }

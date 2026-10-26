@@ -93,8 +93,8 @@ class ParserRegistry {
         for (final item in backupList) {
           try {
             final decoded = jsonDecode(item);
-            if (decoded is Map<String, dynamic>) {
-              final cfg = CustomSourceConfig.fromMap(decoded);
+            if (decoded is Map) {
+              final cfg = CustomSourceConfig.fromMap(Map<String, dynamic>.from(decoded));
               if (cfg.id.isNotEmpty) {
                 // If not in SQLite, or backup has selectors while SQLite version doesn't, prefer backup
                 final existing = mergedConfigs[cfg.id];
@@ -116,8 +116,10 @@ class ParserRegistry {
         } catch (_) {}
       }
 
-      // 3. Keep SharedPreferences backup 100% synchronized with active memory state
-      await _syncCustomSourcesBackup(prefs);
+      // 3. Keep SharedPreferences backup synchronized only if configs were actually recovered
+      if (mergedConfigs.isNotEmpty) {
+        await _syncCustomSourcesBackup(prefs);
+      }
 
       // 4. Restore active parser choice
       final savedActiveId = prefs.getString(_kActiveParserKey);
@@ -127,10 +129,14 @@ class ParserRegistry {
     } catch (_) {}
   }
 
-  Future<void> _syncCustomSourcesBackup([SharedPreferences? prefs]) async {
+  Future<void> _syncCustomSourcesBackup([SharedPreferences? prefs, bool forceEmpty = false]) async {
     try {
       final p = prefs ?? await SharedPreferences.getInstance();
       final customParsers = _parsers.values.whereType<DynamicMangaParser>().toList();
+      if (customParsers.isEmpty && !forceEmpty) {
+        // Guard against wiping existing backup on transient startup errors
+        return;
+      }
       final list = customParsers.map((cp) => jsonEncode(cp.sourceConfig.toMap())).toList();
       await p.setStringList(_kCustomSourcesBackupKey, list);
     } catch (_) {}
@@ -174,7 +180,7 @@ class ParserRegistry {
     if (rawJson != null && rawJson.trim().isNotEmpty) {
       try {
         final decoded = jsonDecode(rawJson);
-        if (decoded is Map<String, dynamic>) {
+        if (decoded is Map) {
           finalConfig = CustomSourceConfig.fromMap({
             ...config.toMap(),
             'config': rawJson,
@@ -200,7 +206,7 @@ class ParserRegistry {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kActiveParserKey, defaultParser.id);
     }
-    await _syncCustomSourcesBackup();
+    await _syncCustomSourcesBackup(null, true);
   }
 
   Future<CustomSourceConfig> importParserFromJson(String jsonStr) async {

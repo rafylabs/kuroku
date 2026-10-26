@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:extended_image/extended_image.dart';
 import '../../../core/database/app_database.dart';
@@ -26,6 +27,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   HistoryFilterType _filter = HistoryFilterType.all;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _isSelectionMode = false;
+  final Set<String> _selectedItemIds = {};
 
   @override
   void initState() {
@@ -44,6 +47,111 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _enterSelectionMode(String itemId) {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedItemIds.add(itemId);
+    });
+    HapticFeedback.mediumImpact();
+  }
+
+  void _toggleSelection(String itemId) {
+    setState(() {
+      if (_selectedItemIds.contains(itemId)) {
+        _selectedItemIds.remove(itemId);
+        if (_selectedItemIds.isEmpty) {
+          _isSelectionMode = false;
+        }
+      } else {
+        _selectedItemIds.add(itemId);
+      }
+    });
+    HapticFeedback.selectionClick();
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedItemIds.clear();
+    });
+  }
+
+  void _toggleSelectAll(List<UnifiedHistoryItem> items) {
+    setState(() {
+      final allIds = items.map((e) => e.id).toSet();
+      final allSelected = allIds.isNotEmpty && allIds.every((id) => _selectedItemIds.contains(id));
+      if (allSelected) {
+        _selectedItemIds.removeAll(allIds);
+        if (_selectedItemIds.isEmpty) {
+          _isSelectionMode = false;
+        }
+      } else {
+        _selectedItemIds.addAll(allIds);
+      }
+    });
+    HapticFeedback.selectionClick();
+  }
+
+  void _confirmBulkDelete(
+    BuildContext context,
+    HistoryNotifier notifier,
+    List<UnifiedHistoryItem> allItems,
+  ) {
+    final selectedItems = allItems.where((it) => _selectedItemIds.contains(it.id)).toList();
+    if (selectedItems.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E232E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.delete_sweep_outlined, color: Colors.redAccent, size: 22),
+            SizedBox(width: 8),
+            Text(
+              'Hapus Riwayat',
+              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Text(
+          'Hapus ${selectedItems.length} riwayat bacaan yang dipilih?',
+          style: const TextStyle(color: Colors.white70, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Batal', style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              Navigator.pop(dialogCtx);
+              final count = selectedItems.length;
+              await notifier.deleteItems(selectedItems);
+              if (mounted) {
+                _exitSelectionMode();
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text('$count riwayat berhasil dihapus'),
+                    backgroundColor: const Color(0xFF1E232E),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   String _getDateHeader(DateTime dt) {
@@ -230,230 +338,193 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final historyAsync = ref.watch(historyProvider);
     final notifier = ref.read(historyProvider.notifier);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F1117),
-      body: SafeArea(
-        child: historyAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, _) => Center(child: Text('Failed to load history: $err')),
-          data: (data) {
-            // Apply search & filter
-            final filteredItems = data.allItems.where((it) {
-              if (_filter == HistoryFilterType.readLater) {
-                if (!data.favoriteMangaIds.contains(it.mangaId)) return false;
-              } else if (_filter == HistoryFilterType.updates) {
-                if (!it.isUpdate) return false;
-              } else if (_filter == HistoryFilterType.readHistory) {
-                if (it.isUpdate) return false;
+    return PopScope(
+      canPop: !_isSelectionMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _isSelectionMode) {
+          _exitSelectionMode();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0F1117),
+        floatingActionButton: _isSelectionMode && _selectedItemIds.isNotEmpty
+            ? FloatingActionButton.extended(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                icon: const Icon(Icons.delete_sweep_outlined),
+                label: Text(
+                  'Hapus (${_selectedItemIds.length})',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onPressed: () {
+                  final data = historyAsync.asData?.value;
+                  if (data != null) {
+                    _confirmBulkDelete(context, notifier, data.allItems);
+                  }
+                },
+              )
+            : null,
+        body: SafeArea(
+          child: historyAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Center(child: Text('Failed to load history: $err')),
+            data: (data) {
+              // Apply search & filter
+              final filteredItems = data.allItems.where((it) {
+                if (_filter == HistoryFilterType.readLater) {
+                  if (!data.favoriteMangaIds.contains(it.mangaId)) return false;
+                } else if (_filter == HistoryFilterType.updates) {
+                  if (!it.isUpdate) return false;
+                } else if (_filter == HistoryFilterType.readHistory) {
+                  if (it.isUpdate) return false;
+                }
+
+                if (_searchQuery.isNotEmpty) {
+                  final matchTitle = it.mangaTitle.toLowerCase().contains(_searchQuery);
+                  final matchChap = it.chapterTitle.toLowerCase().contains(_searchQuery);
+                  return matchTitle || matchChap;
+                }
+                return true;
+              }).toList();
+
+              // Group items chronologically
+              final Map<String, List<UnifiedHistoryItem>> grouped = {};
+              for (final it in filteredItems) {
+                final header = _getDateHeader(it.timestamp);
+                grouped.putIfAbsent(header, () => []).add(it);
               }
 
-              if (_searchQuery.isNotEmpty) {
-                final matchTitle = it.mangaTitle.toLowerCase().contains(_searchQuery);
-                final matchChap = it.chapterTitle.toLowerCase().contains(_searchQuery);
-                return matchTitle || matchChap;
-              }
-              return true;
-            }).toList();
+              return RefreshIndicator(
+                onRefresh: () => notifier.loadHistory(),
+                child: CustomScrollView(
+                  slivers: [
+                    // 1. Top Search Bar / Selection Action Bar
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                        child: _isSelectionMode
+                            ? _buildSelectionBar(context, notifier, filteredItems, data.allItems)
+                            : _buildSearchBar(context, notifier),
+                      ),
+                    ),
 
-            // Group items chronologically
-            final Map<String, List<UnifiedHistoryItem>> grouped = {};
-            for (final it in filteredItems) {
-              final header = _getDateHeader(it.timestamp);
-              grouped.putIfAbsent(header, () => []).add(it);
-            }
-
-            return RefreshIndicator(
-              onRefresh: () => notifier.loadHistory(),
-              child: CustomScrollView(
-                slivers: [
-                  // 1. Top Search Bar
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                      child: Container(
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1C2029),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: Colors.white10),
-                        ),
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 14),
-                            const Icon(Icons.search, color: Colors.white54, size: 22),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: TextField(
-                                controller: _searchController,
-                                style: const TextStyle(color: Colors.white, fontSize: 14),
-                                decoration: const InputDecoration(
-                                  hintText: 'Search manga',
-                                  hintStyle: TextStyle(color: Colors.white38, fontSize: 14),
-                                  border: InputBorder.none,
-                                  isDense: true,
+                    // 2. Filter Bar (Read later, All, Updates, History)
+                    if (!_isSelectionMode)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                _buildFilterPill(
+                                  label: 'Read later',
+                                  icon: _filter == HistoryFilterType.readLater ? Icons.favorite : Icons.favorite_border,
+                                  isSelected: _filter == HistoryFilterType.readLater,
+                                  onTap: () {
+                                    setState(() {
+                                      _filter = _filter == HistoryFilterType.readLater
+                                          ? HistoryFilterType.all
+                                          : HistoryFilterType.readLater;
+                                    });
+                                  },
                                 ),
-                              ),
-                            ),
-                            if (_searchQuery.isNotEmpty)
-                              IconButton(
-                                icon: const Icon(Icons.close, color: Colors.white54, size: 18),
-                                onPressed: () {
-                                  _searchController.clear();
-                                },
-                              ),
-                            PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert, color: Colors.white70),
-                              color: const Color(0xFF1E232E),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              onSelected: (val) {
-                                if (val == 'clear_dialog') {
-                                  _showClearDialog(context, notifier);
-                                } else if (val == 'mark_read') {
-                                  notifier.markAllUpdatesSeen();
-                                } else if (val == 'refresh') {
-                                  notifier.loadHistory();
-                                }
-                              },
-                              itemBuilder: (ctx) => [
-                                const PopupMenuItem(
-                                  value: 'mark_read',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.done_all_rounded, color: Color(0xFF00F0FF), size: 18),
-                                      SizedBox(width: 10),
-                                      Text('Mark all as seen', style: TextStyle(color: Colors.white, fontSize: 13)),
-                                    ],
-                                  ),
+                                const SizedBox(width: 8),
+                                _buildFilterPill(
+                                  label: 'All',
+                                  isSelected: _filter == HistoryFilterType.all,
+                                  onTap: () => setState(() => _filter = HistoryFilterType.all),
                                 ),
-                                const PopupMenuItem(
-                                  value: 'refresh',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.refresh, color: Colors.white70, size: 18),
-                                      SizedBox(width: 10),
-                                      Text('Refresh feed', style: TextStyle(color: Colors.white, fontSize: 13)),
-                                    ],
-                                  ),
+                                const SizedBox(width: 8),
+                                _buildFilterPill(
+                                  label: 'Updates',
+                                  badgeCount: data.unseenUpdateCount > 0 ? data.unseenUpdateCount : null,
+                                  isSelected: _filter == HistoryFilterType.updates,
+                                  onTap: () => setState(() => _filter = HistoryFilterType.updates),
                                 ),
-                                const PopupMenuDivider(),
-                                const PopupMenuItem(
-                                  value: 'clear_dialog',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.delete_sweep_outlined, color: Colors.redAccent, size: 18),
-                                      SizedBox(width: 10),
-                                      Text('Clear history...', style: TextStyle(color: Colors.redAccent, fontSize: 13)),
-                                    ],
-                                  ),
+                                const SizedBox(width: 8),
+                                _buildFilterPill(
+                                  label: 'History',
+                                  isSelected: _filter == HistoryFilterType.readHistory,
+                                  onTap: () => setState(() => _filter = HistoryFilterType.readHistory),
                                 ),
                               ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
 
-                  // 2. Filter Bar (Read later, All, Updates, History)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
+                    // 3. Top "Updates" Horizontal Carousel
+                    if (!_isSelectionMode && _searchQuery.isEmpty && data.updateCards.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Read later (Favorites) outline pill like Kotatsu
-                            _buildFilterPill(
-                              label: 'Read later',
-                              icon: _filter == HistoryFilterType.readLater ? Icons.favorite : Icons.favorite_border,
-                              isSelected: _filter == HistoryFilterType.readLater,
-                              onTap: () {
-                                setState(() {
-                                  _filter = _filter == HistoryFilterType.readLater
-                                      ? HistoryFilterType.all
-                                      : HistoryFilterType.readLater;
-                                });
-                              },
-                            ),
-                            const SizedBox(width: 8),
-                            _buildFilterPill(
-                              label: 'All',
-                              isSelected: _filter == HistoryFilterType.all,
-                              onTap: () => setState(() => _filter = HistoryFilterType.all),
-                            ),
-                            const SizedBox(width: 8),
-                            _buildFilterPill(
-                              label: 'Updates',
-                              badgeCount: data.unseenUpdateCount > 0 ? data.unseenUpdateCount : null,
-                              isSelected: _filter == HistoryFilterType.updates,
-                              onTap: () => setState(() => _filter = HistoryFilterType.updates),
-                            ),
-                            const SizedBox(width: 8),
-                            _buildFilterPill(
-                              label: 'History',
-                              isSelected: _filter == HistoryFilterType.readHistory,
-                              onTap: () => setState(() => _filter = HistoryFilterType.readHistory),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // 3. Top "Updates" Horizontal Carousel
-                  if (_searchQuery.isEmpty && data.updateCards.isNotEmpty)
-                    SliverToBoxAdapter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-                            child: Row(
-                              children: [
-                                const Text(
-                                  'Updates',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+                              child: Row(
+                                children: [
+                                  const Text(
+                                    'Updates',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                                   ),
-                                ),
-                                const Spacer(),
-                                if (data.updateCount > 0)
-                                  GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        _filter = HistoryFilterType.updates;
-                                      });
-                                    },
-                                    child: const Text(
-                                      'More',
-                                      style: TextStyle(
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFF4081).withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '${data.updateCards.length}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
                                         color: Color(0xFFFF4081),
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
                                       ),
                                     ),
                                   ),
-                              ],
+                                  const Spacer(),
+                                  if (data.updateCount > 0)
+                                    GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _filter = HistoryFilterType.updates;
+                                        });
+                                      },
+                                      child: const Text(
+                                        'More',
+                                        style: TextStyle(
+                                          color: Color(0xFFFF4081),
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
-                          ),
-                          SizedBox(
-                            height: 200,
-                            child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              scrollDirection: Axis.horizontal,
-                              itemCount: data.updateCards.length,
-                              separatorBuilder: (_, _) => const SizedBox(width: 12),
-                              itemBuilder: (ctx, idx) {
-                                final card = data.updateCards[idx];
-                                return _buildUpdateCard(context, card, notifier);
-                              },
+                            SizedBox(
+                              height: 200,
+                              child: ListView.separated(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                scrollDirection: Axis.horizontal,
+                                itemCount: data.updateCards.length,
+                                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                                itemBuilder: (ctx, idx) {
+                                  final card = data.updateCards[idx];
+                                  return _buildUpdateCard(context, card, notifier);
+                                },
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 8),
+                          ],
+                        ),
                       ),
-                    ),
 
                   // 4. Chronological Feed Groups (Today, Yesterday, 2 days ago...)
                   if (filteredItems.isEmpty)
@@ -502,7 +573,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           delegate: SliverChildBuilderDelegate(
                             (ctx, idx) {
                               final it = itemsInGroup[idx];
-                              return _buildFeedItem(context, it, notifier);
+                              return _buildFeedItem(
+                                context,
+                                it,
+                                notifier,
+                                isSelectionMode: _isSelectionMode,
+                                isSelected: _selectedItemIds.contains(it.id),
+                              );
                             },
                             childCount: itemsInGroup.length,
                           ),
@@ -516,6 +593,159 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             );
           },
         ),
+      ),
+    ),
+  );
+}
+
+  Widget _buildSelectionBar(
+    BuildContext context,
+    HistoryNotifier notifier,
+    List<UnifiedHistoryItem> filteredItems,
+    List<UnifiedHistoryItem> allItems,
+  ) {
+    final allFilteredSelected = filteredItems.isNotEmpty &&
+        filteredItems.every((it) => _selectedItemIds.contains(it.id));
+
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C2433),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFF00F0FF).withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.white, size: 20),
+            tooltip: 'Batal',
+            onPressed: _exitSelectionMode,
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              '${_selectedItemIds.length} dipilih',
+              style: const TextStyle(
+                color: Color(0xFF00F0FF),
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: Icon(
+              allFilteredSelected ? Icons.deselect : Icons.select_all,
+              color: Colors.white70,
+              size: 20,
+            ),
+            tooltip: allFilteredSelected ? 'Batal Pilih Semua' : 'Pilih Semua',
+            onPressed: () => _toggleSelectAll(filteredItems),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+            tooltip: 'Hapus yang dipilih',
+            onPressed: _selectedItemIds.isNotEmpty
+                ? () => _confirmBulkDelete(context, notifier, allItems)
+                : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(BuildContext context, HistoryNotifier notifier) {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C2029),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 14),
+          const Icon(Icons.search, color: Colors.white54, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: const InputDecoration(
+                hintText: 'Search manga',
+                hintStyle: TextStyle(color: Colors.white38, fontSize: 14),
+                border: InputBorder.none,
+                isDense: true,
+              ),
+            ),
+          ),
+          if (_searchQuery.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+              onPressed: () {
+                _searchController.clear();
+              },
+            ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white70),
+            color: const Color(0xFF1E232E),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            onSelected: (val) {
+              if (val == 'clear_dialog') {
+                _showClearDialog(context, notifier);
+              } else if (val == 'select_multiple') {
+                setState(() => _isSelectionMode = true);
+              } else if (val == 'mark_read') {
+                notifier.markAllUpdatesSeen();
+              } else if (val == 'refresh') {
+                notifier.loadHistory();
+              }
+            },
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(
+                value: 'select_multiple',
+                child: Row(
+                  children: [
+                    Icon(Icons.checklist_rounded, color: Color(0xFF00F0FF), size: 18),
+                    SizedBox(width: 10),
+                    Text('Pilih untuk dihapus', style: TextStyle(color: Colors.white, fontSize: 13)),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'mark_read',
+                child: Row(
+                  children: [
+                    Icon(Icons.done_all_rounded, color: Color(0xFF00F0FF), size: 18),
+                    SizedBox(width: 10),
+                    Text('Mark all as seen', style: TextStyle(color: Colors.white, fontSize: 13)),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'refresh',
+                child: Row(
+                  children: [
+                    Icon(Icons.refresh, color: Colors.white70, size: 18),
+                    SizedBox(width: 10),
+                    Text('Refresh feed', style: TextStyle(color: Colors.white, fontSize: 13)),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'clear_dialog',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_sweep_outlined, color: Colors.redAccent, size: 18),
+                    SizedBox(width: 10),
+                    Text('Clear history...', style: TextStyle(color: Colors.redAccent, fontSize: 13)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -729,10 +959,16 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-  Widget _buildFeedItem(BuildContext context, UnifiedHistoryItem item, HistoryNotifier notifier) {
+  Widget _buildFeedItem(
+    BuildContext context,
+    UnifiedHistoryItem item,
+    HistoryNotifier notifier, {
+    required bool isSelectionMode,
+    required bool isSelected,
+  }) {
     return Dismissible(
       key: Key('feed_${item.id}'),
-      direction: DismissDirection.endToStart,
+      direction: isSelectionMode ? DismissDirection.none : DismissDirection.endToStart,
       background: Container(
         color: Colors.redAccent.withValues(alpha: 0.8),
         alignment: Alignment.centerRight,
@@ -743,11 +979,36 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         notifier.deleteItem(item);
       },
       child: InkWell(
-        onTap: () => _handleItemTap(item),
-        child: Padding(
+        onTap: () {
+          if (isSelectionMode) {
+            _toggleSelection(item.id);
+          } else {
+            _handleItemTap(item);
+          }
+        },
+        onLongPress: () {
+          if (isSelectionMode) {
+            _toggleSelection(item.id);
+          } else {
+            _enterSelectionMode(item.id);
+          }
+        },
+        child: Container(
+          color: isSelected
+              ? const Color(0xFF00F0FF).withValues(alpha: 0.12)
+              : Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
+              if (isSelectionMode)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Icon(
+                    isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: isSelected ? const Color(0xFF00F0FF) : Colors.white38,
+                    size: 22,
+                  ),
+                ),
               // Cover Thumbnail
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),

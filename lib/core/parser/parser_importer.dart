@@ -14,11 +14,11 @@ class ParserImporter {
     }
 
     final decoded = jsonDecode(trimmed);
-    if (decoded is! Map<String, dynamic>) {
+    if (decoded is! Map) {
       throw const FormatException('Parser spec root must be a JSON object');
     }
 
-    return fromJson(decoded);
+    return fromJson(Map<String, dynamic>.from(decoded));
   }
 
   /// Parse and validate JSON map into a CustomSourceConfig.

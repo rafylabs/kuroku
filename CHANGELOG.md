@@ -2,7 +2,12 @@
 
 All notable changes to Kuroku (黒録) will be documented in this file.
 
-## [v1.4.2] - 2026-10-25
+## [v1.4.3] - 2026-10-26
+### 🐛 Perbaikan Bug & Peningkatan:
+- 🛡️ **Proteksi Timpa Cadangan Cold Boot (Custom Sources)**: Menambahkan guard proteksi penulisan SharedPreferences agar startup cold boot tidak menimpa file preferensi dengan list kosong saat database SQLite sedang dalam proses inisialisasi awal.
+- 🧩 **Toleransi Runtime Map Parser Dinamis**: Memperbaiki deserialisasi runtime Dart AOT untuk menerima seluruh varian koleksi map (`Map<dynamic, dynamic>`, `Map<String, Object?>`) pada pemulihan sumber kustom dan selektor spesifikasi dari database SQLite serta cadangan lokal.
+- 🗑️ **Fitur Hapus Riwayat Massal (Bulk History Deletion)**: Menambahkan mode seleksi interaktif dengan long-press (tekan dan tahan) pada kartu riwayat, feedback getar haptic, aksi centang semua (select all), serta penghapusan massal dalam satu batch dialog konfirmasi.
+
 ### 🐛 Perbaikan Bug & Peningkatan:
 - 🔄 **Rekonsiliasi Persistensi Ganda Custom Source**: Memperbaiki pemulihan sumber kustom hasil impor agar otomatis menggabungkan (merge) data dari SQLite dan SharedPreferences pada saat startup aplikasi, mencegah sumber hilang saat aplikasi dihentikan paksa (kill task) dari app switcher.
 - 🛠️ **Migrasi Skema SQLite `custom_sources` Otomatis**: Menambahkan migrasi kolom `config` otomatis pada tabel SQLite `custom_sources` untuk perangkat yang meng-upgrade dari versi terdahulu.

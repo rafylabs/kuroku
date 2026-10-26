@@ -58,24 +58,24 @@ class CustomSourceConfig {
     };
   }
 
-  factory CustomSourceConfig.fromMap(Map<String, dynamic> map) {
+  factory CustomSourceConfig.fromMap(Map<dynamic, dynamic> map) {
     Map<String, dynamic>? selectors;
     final rawConfig = map['config'];
     if (rawConfig != null) {
       if (rawConfig is String && rawConfig.isNotEmpty) {
         try {
           final decoded = jsonDecode(rawConfig);
-          if (decoded is Map<String, dynamic>) {
-            selectors = decoded;
+          if (decoded is Map) {
+            selectors = Map<String, dynamic>.from(decoded);
           }
         } catch (_) {}
-      } else if (rawConfig is Map<String, dynamic>) {
-        selectors = rawConfig;
+      } else if (rawConfig is Map) {
+        selectors = Map<String, dynamic>.from(rawConfig);
       }
     }
 
-    if (selectors == null && map.containsKey('selectors') && map['selectors'] is Map<String, dynamic>) {
-      selectors = map;
+    if (selectors == null && map.containsKey('selectors') && map['selectors'] is Map) {
+      selectors = Map<String, dynamic>.from(map);
     }
 
     final id = map['id']?.toString() ?? 'custom_${DateTime.now().millisecondsSinceEpoch}';

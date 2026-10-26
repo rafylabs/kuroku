@@ -545,16 +545,44 @@ class AppDatabase {
     final db = await database;
     await db.delete(
       'history',
-      where: 'manga_id = ? AND chapter_id = ?',
-      whereArgs: [mangaId, chapterId],
+      where: 'manga_id = ?',
+      whereArgs: [mangaId],
     );
+  }
+
+  Future<void> deleteHistoryEntries(List<({String mangaId, String chapterId})> entries) async {
+    if (entries.isEmpty) return;
+    final db = await database;
+    final batch = db.batch();
+    for (final e in entries) {
+      batch.delete(
+        'history',
+        where: 'manga_id = ?',
+        whereArgs: [e.mangaId],
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<void> deleteUpdateEntries(List<String> ids) async {
+    if (ids.isEmpty) return;
+    final db = await database;
+    final batch = db.batch();
+    for (final id in ids) {
+      batch.delete(
+        'chapter_updates',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    }
+    await batch.commit(noResult: true);
   }
 
   // --- Custom Sources Operations ---
   Future<List<CustomSourceConfig>> getCustomSources() async {
     final db = await database;
     final results = await db.query('custom_sources', orderBy: 'name ASC');
-    return results.map((r) => CustomSourceConfig.fromMap(r)).toList();
+    return results.map((r) => CustomSourceConfig.fromMap(Map<String, dynamic>.from(r))).toList();
   }
 
   Future<void> upsertCustomSource(CustomSourceConfig config) async {
